@@ -86,3 +86,49 @@ export const dodajPonudu = async (req, res) => {
     res.status(500).json({ poruka: 'Greška pri slanju ponude', greska: error.message });
   }
 };
+// 4. PREUZIMANJE DETALJA JEDNE SPECIFIČNE AUKCIJE
+export const preuzmiAukcijuPoId = async (req, res) => {
+  try {
+    const { aukcijaId } = req.params;
+
+    // Pronađi aukciju i popuni podatke o prodavcu, ali i o korisnicima unutar niza ponuda
+    const aukcija = await Auction.findById(aukcijaId)
+      .populate('prodavac', 'ime email')
+      .populate('ponude.korisnik', 'ime email');
+
+    if (!aukcija) {
+      return res.status(404).json({ poruka: 'Aukcija nije pronađena.' });
+    }
+
+    res.status(200).json(aukcija);
+  } catch (error) {
+    res.status(500).json({ poruka: 'Greška pri preuzimanju detalja aukcije', greska: error.message });
+  }
+};
+
+// 5. BRISANJE / OTKAZIVANJE AUKCIJE
+export const obrisiAukciju = async (req, res) => {
+  try {
+    const { aukcijaId } = req.params;
+    const korisnikId = req.korisnik._id;
+
+    const aukcija = await Auction.findById(aukcijaId);
+
+    if (!aukcija) {
+      return res.status(404).json({ poruka: 'Aukcija nije pronađena.' });
+    }
+
+    // Provjera: Samo prodavac (vlasnik) može obrisati svoju aukciju
+    if (aukcija.prodavac.toString() !== korisnikId.toString()) {
+      return res.status(403).json({ poruka: 'Nemate ovlaštenje da obrišete ovu aukciju.' });
+    }
+
+    // Opcionalno: Možeš dodati pravilo da se aukcija ne može obrisati ako već ima ponuda, 
+    // ali za sada ćemo dozvoliti brisanje
+    await Auction.findByIdAndDelete(aukcijaId);
+
+    res.status(200).json({ poruka: 'Aukcija je uspješno otkazana i obrisana!' });
+  } catch (error) {
+    res.status(500).json({ poruka: 'Greška pri brisanju aukcije', greska: error.message });
+  }
+};
