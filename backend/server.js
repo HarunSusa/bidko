@@ -2,7 +2,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/db.js';
-import authRoutes from './routes/authRoutes.js'; // 1. Uvoz ruta
+import authRoutes from './routes/authRoutes.js'; 
+import aukcijaRoutes from './routes/aukcijaRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -12,8 +13,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 2. Povezivanje auth ruta sa prefiksom /api/auth
 app.use('/api/auth', authRoutes);
+app.use('/api/aukcije', aukcijaRoutes); // NOVO: Povezivanje aukcija ruta sa prefiksom /api/aukcije
 
 app.get('/', (req, res) => {
   res.send('Bidko API radi savršeno!');

@@ -57,10 +57,10 @@ export const login = async (req, res) => {
 
     // Generisanje JWT Tokena koji važi 30 dana
     const token = jwt.sign(
-      { id: korisnik._index, ime: korisnik.ime },
-      process.env.JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+  { id: korisnik._id, ime: korisnik.ime }, // Popravljeno: _id umjesto _index
+  process.env.JWT_SECRET,
+  { expiresIn: '30d' }
+);
 
     res.status(200).json({
       poruka: 'Uspješno ste se prijavili!',
