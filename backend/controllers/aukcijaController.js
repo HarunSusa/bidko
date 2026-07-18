@@ -24,10 +24,31 @@ export const kreirajAukciju = async (req, res) => {
   }
 };
 
-// 2. PREUZIMANJE SVIH AKTIVNIH AUKCIJA
+// 2. PREUZIMANJE SVIH AUKCIJA (SA PRETRAGOM I FILTRIRANJEM)
 export const preuzmiAukcije = async (req, res) => {
   try {
-    const aukcije = await Auction.find().populate('prodavac', 'ime email');
+    // Uzimamo parametre iz URL-a (query params)
+    const { pretraga, kategorija } = req.query;
+
+    // Pravimo dinamički objekat za filtriranje baze
+    let query = { status: 'aktivno' }; // Po defaultu prikazujemo samo aktivne aukcije
+
+    // 1. Ako korisnik pretražuje po tekstu (Search bar)
+    if (pretraga) {
+      query.$or = [
+        { naslov: { $regex: pretraga, $options: 'i' } }, // 'i' znači case-insensitive (nebitna velika/mala slova)
+        { opis: { $regex: pretraga, $options: 'i' } }
+      ];
+    }
+
+    // 2. Ako korisnik izabere određenu kategoriju
+    if (kategorija) {
+      query.kategorija = kategorija;
+    }
+
+    // Izvršavamo pretragu u bazi podataka sa svim filterima
+    const aukcije = await Auction.find(query).populate('prodavac', 'ime email');
+    
     res.status(200).json(aukcije);
   } catch (error) {
     res.status(500).json({ poruka: 'Greška pri preuzimanju aukcija', greska: error.message });
