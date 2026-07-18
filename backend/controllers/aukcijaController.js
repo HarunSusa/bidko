@@ -33,3 +33,56 @@ export const preuzmiAukcije = async (req, res) => {
     res.status(500).json({ poruka: 'Greška pri preuzimanju aukcija', greska: error.message });
   }
 };
+
+// 3. DODAVANJE PONUDE NA AUKCIJU (LICITIRANJE)
+export const dodajPonudu = async (req, res) => {
+  try {
+    const { aukcijaId } = req.params;
+    const { iznos } = req.body; // Iznos koji korisnik nudi
+    const korisnikId = req.korisnik._id;
+
+    // 1. Pronađi aukciju u bazi
+    const aukcija = await Auction.findById(aukcijaId);
+
+    if (!aukcija) {
+      return res.status(404).json({ poruka: 'Aukcija nije pronađena.' });
+    }
+
+    // 2. Provjera da li je aukcija istekla
+    if (new Date(aukcija.trajanjeDo) < new Date()) {
+      return res.status(400).json({ poruka: 'Aukcija je već završena!' });
+    }
+
+    // 3. Vlasnik ne može licitirati na svoj artikal
+    if (aukcija.prodavac.toString() === korisnikId.toString()) {
+      return res.status(400).json({ poruka: 'Ne možete licitirati na sopstvenu aukciju.' });
+    }
+
+    // 4. Nova ponuda mora biti veća od trenutne cijene
+    if (iznos <= aukcija.trenutnaCijena) {
+      return res.status(400).json({ 
+        poruka: `Ponuda mora biti veća od trenutne cijene koja iznosi ${aukcija.trenutnaCijena} KM.` 
+      });
+    }
+
+    // 5. Ako je sve OK, ažuriramo trenutnu cijenu i dodajemo ponudu u niz
+    aukcija.trenutnaCijena = iznos;
+    
+    // Provjeri da li tvoj model koristi 'ponude' ili 'bids' i prilagodi po potrebi:
+    aukcija.ponude.push({
+      korisnik: korisnikId,
+      iznos: iznos,
+      vrijeme: new Date()
+    });
+
+    await aukcija.save();
+
+    res.status(200).json({ 
+      poruka: 'Ponuda uspješno prihvaćena!', 
+      trenutnaCijena: aukcija.trenutnaCijena 
+    });
+
+  } catch (error) {
+    res.status(500).json({ poruka: 'Greška pri slanju ponude', greska: error.message });
+  }
+};
