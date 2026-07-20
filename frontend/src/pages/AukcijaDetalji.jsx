@@ -33,6 +33,7 @@ function AukcijaDetalji() {
     e.preventDefault();
     setPoruka({ tip: '', tekst: '' });
 
+    // JS provjera vrijednosti prije slanja na backend
     if (!iznosPonude || Number(iznosPonude) <= aukcija.trenutnaCijena) {
       setPoruka({ tip: 'greska', tekst: `Ponuda mora biti veća od trenutne cijene (${aukcija.trenutnaCijena} KM).` });
       return;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import CountdownTimer from '../components/CountdownTimer';
 
 function Dashboard() {
@@ -8,36 +8,40 @@ function Dashboard() {
   const [ucitava, setUcitava] = useState(true);
   const [obrisanoPoruka, setObrisanoPoruka] = useState('');
 
+  const navigate = useNavigate();
   const korisnikPodaci = localStorage.getItem('korisnik');
   const trenutniKorisnik = korisnikPodaci ? JSON.parse(korisnikPodaci) : null;
   const token = localStorage.getItem('token');
 
-  // Funkcija za povlačenje aukcija
-  const dohvatiMojeAukcije = async () => {
-    try {
-      const odgovor = await axios.get('http://localhost:5000/api/aukcije');
-      const korisnikId = trenutniKorisnik?._id || trenutniKorisnik?.id;
-      
-      const filtrirane = odgovor.data.filter(
-        (aukcija) => {
-          const prodavacId = aukcija.prodavac?._id || aukcija.prodavac?.id || aukcija.prodavac;
-          return String(prodavacId) === String(korisnikId);
-        }
-      );
-      
-      setMojeAukcije(filtrirane);
-    } catch (error) {
-      console.error("Greška pri učitavanju korisničkih aukcija:", error);
-    } finally {
-      setUcitava(false);
-    }
-  };
-
   useEffect(() => {
-    if (trenutniKorisnik) {
-      dohvatiMojeAukcije();
+    // 🔒 Ako korisnik nije ulogovan, odmah ga preusmjeravamo na login
+    if (!token || !trenutniKorisnik) {
+      navigate('/login');
+      return;
     }
-  }, []);
+
+    const dohvatiMojeAukcije = async () => {
+      try {
+        const odgovor = await axios.get('http://localhost:5000/api/aukcije');
+        const korisnikId = trenutniKorisnik?._id || trenutniKorisnik?.id;
+        
+        const filtrirane = odgovor.data.filter(
+          (aukcija) => {
+            const prodavacId = aukcija.prodavac?._id || aukcija.prodavac?.id || aukcija.prodavac;
+            return String(prodavacId) === String(korisnikId);
+          }
+        );
+        
+        setMojeAukcije(filtrirane);
+      } catch (error) {
+        console.error("Greška pri učitavanju korisničkih aukcija:", error);
+      } finally {
+        setUcitava(false);
+      }
+    };
+
+    dohvatiMojeAukcije();
+  }, [token, trenutniKorisnik, navigate]);
 
   // Funkcija za brisanje aukcije
   const handleObrisi = async (aukcijaId) => {
@@ -63,18 +67,13 @@ function Dashboard() {
       // Skloni poruku nakon 3 sekunde
       setTimeout(() => setObrisanoPoruka(''), 3000);
     } catch (error) {
-      console.error("Greška pri brisanju aukcije:", error);
+      console.error("Greška pri brisanju aukcija:", error);
       alert(error.response?.data?.poruka || "Došlo je do greške pri brisanju.");
     }
   };
 
   if (!trenutniKorisnik) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Morate biti prijavljeni da biste vidjeli dashboard.</h2>
-        <Link to="/login" className="text-blue-600 hover:underline mt-4 inline-block">Prijavi se</Link>
-      </div>
-    );
+    return null; // Spriječava treperenje starog UI-ja prije nego što navigate odradi svoje
   }
 
   if (ucitava) {
