@@ -32,6 +32,12 @@ function Navbar() {
             {token && korisnik ? (
               <div className="flex items-center space-x-4">
                 <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-xl">
+                    <Link 
+                        to="/kreiraj-aukciju" 
+                        className="text-sm font-semibold text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-xl transition mr-2"
+                    >
+                        + Nova Aukcija
+                    </Link>
                   👋 {korisnik.ime}
                 </span>
                 <button 
