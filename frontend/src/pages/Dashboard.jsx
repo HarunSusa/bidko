@@ -6,27 +6,24 @@ import CountdownTimer from '../components/CountdownTimer';
 function Dashboard() {
   const [mojeAukcije, setMojeAukcije] = useState([]);
   const [ucitava, setUcitava] = useState(true);
+  const [obrisanoPoruka, setObrisanoPoruka] = useState('');
 
-  // Čitamo podatke o ulogovanom korisniku iz localStorage
   const korisnikPodaci = localStorage.getItem('korisnik');
   const trenutniKorisnik = korisnikPodaci ? JSON.parse(korisnikPodaci) : null;
+  const token = localStorage.getItem('token');
 
-  useEffect(() => {
+  // Funkcija za povlačenje aukcija
   const dohvatiMojeAukcije = async () => {
     try {
       const odgovor = await axios.get('http://localhost:5000/api/aukcije');
-      
       const korisnikId = trenutniKorisnik?._id || trenutniKorisnik?.id;
       
-      // DODAJ OVA DVA REDA ZA PROVJERU:
-      console.log("ID trenutnog korisnika iz localStorage:", korisnikId);
-      console.log("Struktura prve aukcije iz baze:", odgovor.data[0]);
-
-      const filtrirane = odgovor.data.filter((aukcija) => {
-  // Uzimamo ID prodavca iz objekta aukcija.prodavac
-  const prodavacId = aukcija.prodavac?._id || aukcija.prodavac?.id || aukcija.prodavac;
-  return String(prodavacId) === String(korisnikId);
-});
+      const filtrirane = odgovor.data.filter(
+        (aukcija) => {
+          const prodavacId = aukcija.prodavac?._id || aukcija.prodavac?.id || aukcija.prodavac;
+          return String(prodavacId) === String(korisnikId);
+        }
+      );
       
       setMojeAukcije(filtrirane);
     } catch (error) {
@@ -36,10 +33,41 @@ function Dashboard() {
     }
   };
 
-  if (trenutniKorisnik) {
-    dohvatiMojeAukcije();
-  }
-}, []);
+  useEffect(() => {
+    if (trenutniKorisnik) {
+      dohvatiMojeAukcije();
+    }
+  }, []);
+
+  // Funkcija za brisanje aukcije
+  const handleObrisi = async (aukcijaId) => {
+    if (!window.confirm("Da li ste sigurni da želite obrisati ovu aukciju?")) {
+      return;
+    }
+
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      };
+
+      // Pozivamo tvoj DELETE endpoint
+      await axios.delete(`http://localhost:5000/api/aukcije/${aukcijaId}`, config);
+      
+      setObrisanoPoruka('Aukcija je uspješno obrisana.');
+      
+      // Automatski uklanjamo obrisanu aukciju iz state-a da se ekran odmah ažurira
+      setMojeAukcije(mojeAukcije.filter(aukcija => aukcija._id !== aukcijaId));
+
+      // Skloni poruku nakon 3 sekunde
+      setTimeout(() => setObrisanoPoruka(''), 3000);
+    } catch (error) {
+      console.error("Greška pri brisanju aukcije:", error);
+      alert(error.response?.data?.poruka || "Došlo je do greške pri brisanju.");
+    }
+  };
+
   if (!trenutniKorisnik) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12 text-center">
@@ -59,10 +87,18 @@ function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-gray-950">Moj Dashboard 📊</h1>
-        <p className="text-gray-500 text-sm mt-1">Upravljajte aukcijama koje ste postavili na platformu.</p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-gray-950">Moj Dashboard 📊</h1>
+          <p className="text-gray-500 text-sm mt-1">Upravljajte aukcijama koje ste postavili na platformu.</p>
+        </div>
       </div>
+
+      {obrisanoPoruka && (
+        <div className="mb-6 p-3 bg-green-50 text-green-600 border border-green-100 rounded-xl text-sm text-center font-medium animate-fade-in">
+          {obrisanoPoruka}
+        </div>
+      )}
 
       {mojeAukcije.length === 0 ? (
         <div className="bg-white border border-gray-100 rounded-3xl p-12 text-center shadow-sm">
@@ -105,13 +141,20 @@ function Dashboard() {
                 <CountdownTimer datumIsteka={aukcija.trajanjeDo} />
               </div>
 
+              {/* Akciona dugmad na dnu kartice */}
               <div className="mt-4 pt-4 border-t border-gray-100 flex gap-2">
                 <Link 
                   to={`/aukcija/${aukcija._id}`} 
-                  className="w-full text-center bg-gray-950 hover:bg-blue-600 text-white font-medium py-2 rounded-xl text-sm transition shadow-sm"
+                  className="flex-1 text-center bg-gray-950 hover:bg-blue-600 text-white font-medium py-2 rounded-xl text-sm transition shadow-sm"
                 >
-                  Pogledaj detalje
+                  Pogledaj
                 </Link>
+                <button 
+                  onClick={() => handleObrisi(aukcija._id)}
+                  className="px-4 bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-2 rounded-xl text-sm transition border border-red-100"
+                >
+                  Obriši 🗑️
+                </button>
               </div>
             </div>
           ))}
