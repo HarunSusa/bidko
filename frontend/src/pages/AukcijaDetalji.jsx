@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
+import CountdownTimer from '../components/CountdownTimer';
 
 function AukcijaDetalji() {
   const { id } = useParams();
@@ -103,6 +104,9 @@ function AukcijaDetalji() {
             </span>
             <h1 className="text-3xl font-black text-gray-950 mb-2">{aukcija.naslov}</h1>
             <p className="text-gray-600 text-sm leading-relaxed mb-6">{aukcija.opis}</p>
+            <div className="mb-6">
+                <CountdownTimer datumIsteka={aukcija.trajanjeDo} />
+            </div>
             
             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 grid grid-cols-2 gap-4 mb-6">
               <div>
