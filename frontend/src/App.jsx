@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import AukcijaDetalji from './pages/AukcijaDetalji';
 import KreirajAukciju from './pages/KreirajAukciju';
+import Dashboard from './pages/Dashboard';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/aukcija/:id" element={<AukcijaDetalji />} />
             <Route path="/kreiraj-aukciju" element={<KreirajAukciju />} />
+            <Route path="/dashboard" element={<Dashboard />} />
           </Routes>
         </main>
       </div>

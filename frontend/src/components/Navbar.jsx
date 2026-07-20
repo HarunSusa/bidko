@@ -31,15 +31,23 @@ function Navbar() {
             
             {token && korisnik ? (
               <div className="flex items-center space-x-4">
-                <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-xl">
-                    <Link 
-                        to="/kreiraj-aukciju" 
-                        className="text-sm font-semibold text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-xl transition mr-2"
-                    >
-                        + Nova Aukcija
-                    </Link>
+                {/* Link 1: Kreiranje aukcije (odvojen) */}
+                <Link 
+                  to="/kreiraj-aukciju" 
+                  className="text-sm font-semibold text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-xl transition"
+                >
+                  + Nova Aukcija
+                </Link>
+                
+                {/* Link 2: Dashboard/Profil (odvojen) */}
+                <Link 
+                  to="/dashboard" 
+                  className="text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-xl transition"
+                >
                   👋 {korisnik.ime}
-                </span>
+                </Link>
+
+                {/* Dugme za odjavu */}
                 <button 
                   onClick={handleLogout}
                   className="text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-2 rounded-xl transition"
