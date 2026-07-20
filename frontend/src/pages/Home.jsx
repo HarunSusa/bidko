@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 
 function Home() {
   const [aukcije, setAukcije] = useState([]);
@@ -66,9 +67,12 @@ function Home() {
                     <p className="text-gray-400 text-xs">Trenutna cijena</p>
                     <p className="text-xl font-black text-gray-900">{aukcija.trenutnaCijena} KM</p>
                   </div>
-                  <button className="bg-gray-900 hover:bg-blue-600 text-white font-medium py-2 px-3.5 rounded-xl text-sm transition shadow-sm">
-                    Pogledaj
-                  </button>
+                  <Link 
+                    to={`/aukcija/${aukcija._id}`} 
+                    className="bg-gray-900 hover:bg-blue-600 text-white font-medium py-2 px-3.5 rounded-xl text-sm transition shadow-sm text-center"
+                >
+                Pogledaj
+                </Link>
                 </div>
               </div>
             </div>
