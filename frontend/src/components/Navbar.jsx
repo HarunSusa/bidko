@@ -1,21 +1,54 @@
 import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 function Navbar() {
+  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+  const korisnikPodaci = localStorage.getItem('korisnik');
+  const korisnik = korisnikPodaci ? JSON.parse(korisnikPodaci) : null;
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('korisnik');
+    navigate('/login');
+    window.location.reload();
+  };
+
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-50">
+    <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          <div className="flex-shrink-0 flex items-center">
+          <Link to="/" className="flex-shrink-0 flex items-center">
             <span className="text-2xl font-black text-blue-600 tracking-wider">BIDKO<span className="text-amber-500">.</span></span>
-          </div>
+          </Link>
 
           {/* Navigacioni linkovi */}
           <div className="flex items-center space-x-4">
-            <button className="text-gray-600 hover:text-blue-600 font-medium transition">Aukcije</button>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-xl transition shadow-sm">
-              Prijava
-            </button>
+            <Link to="/" className="text-gray-600 hover:text-blue-600 font-medium transition text-sm">
+              Aukcije
+            </Link>
+            
+            {token && korisnik ? (
+              <div className="flex items-center space-x-4">
+                <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-xl">
+                  👋 {korisnik.ime}
+                </span>
+                <button 
+                  onClick={handleLogout}
+                  className="text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-2 rounded-xl transition"
+                >
+                  Odjava
+                </button>
+              </div>
+            ) : (
+              <Link 
+                to="/login" 
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-xl text-sm transition shadow-sm"
+              >
+                Prijava
+              </Link>
+            )}
           </div>
         </div>
       </div>
