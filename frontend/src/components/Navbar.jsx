@@ -1,11 +1,19 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Gavel, LayoutDashboard, LogOut } from 'lucide-react';
+
+// Dodaj u index.html (u <head>), za font logotipa:
+// <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,700;1,900&display=swap" />
 
 function Navbar() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
   const korisnikPodaci = localStorage.getItem('korisnik');
   const korisnik = korisnikPodaci ? JSON.parse(korisnikPodaci) : null;
+
+  const inicijali = korisnik?.ime
+    ? korisnik.ime.split(' ').map((d) => d[0]).join('').slice(0, 2).toUpperCase()
+    : 'BK';
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -15,50 +23,73 @@ function Navbar() {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          {/* Logo */}
-          <Link to="/" className="flex-shrink-0 flex items-center">
-            <span className="text-2xl font-black text-blue-600 tracking-wider">BIDKO<span className="text-amber-500">.</span></span>
+    <nav className="relative bg-[#0B0D10]/95 backdrop-blur-xl sticky top-0 z-50 shadow-[0_1px_0_0_rgba(212,175,55,0.15)]">
+      {/* suptilna zlatna linija na dnu */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent" />
+
+      <div className="max-w-7xl mx-auto px-6 sm:px-8">
+        <div className="flex justify-between h-20 items-center">
+
+          {/* LOGO */}
+          <Link to="/" className="flex-shrink-0 flex items-center group">
+            <span
+              className="text-[26px] leading-none font-black italic text-[#F3F1EA] tracking-tight group-hover:text-[#E9C25A] transition-colors duration-300"
+              style={{ fontFamily: "'Fraunces', Georgia, serif" }}
+            >
+              Bidko<span className="text-[#D4AF37] not-italic">.</span>
+            </span>
           </Link>
 
-          {/* Navigacioni linkovi */}
-          <div className="flex items-center space-x-4">
-            <Link to="/" className="text-gray-600 hover:text-blue-600 font-medium transition text-sm">
+          {/* MENI */}
+          <div className="flex items-center space-x-3">
+            <Link
+              to="/"
+              className="flex items-center justify-center text-[#9A9CA6] hover:text-[#F3F1EA] font-semibold text-[11px] uppercase tracking-[0.2em]
+                         px-4 py-2.5 rounded-md border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#D4AF37]/30 transition-all"
+            >
               Aukcije
             </Link>
-            
+
             {token && korisnik ? (
-              <div className="flex items-center space-x-4">
-                {/* Link 1: Kreiranje aukcije (odvojen) */}
-                <Link 
-                  to="/kreiraj-aukciju" 
-                  className="text-sm font-semibold text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-xl transition"
+              <div className="flex items-center space-x-3">
+                <Link
+                  to="/kreiraj-aukciju"
+                  className="group flex items-center gap-2 text-[11px] font-bold text-[#0B0D10] bg-gradient-to-b from-[#E9C25A] to-[#C89A2E] hover:from-[#F0CE72] hover:to-[#D4AF37] px-4 py-2.5 rounded-md transition-all uppercase tracking-[0.15em] active:scale-[0.97]"
                 >
-                  + Nova Aukcija
-                </Link>
-                
-                {/* Link 2: Dashboard/Profil (odvojen) */}
-                <Link 
-                  to="/dashboard" 
-                  className="text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-xl transition"
-                >
-                  👋 {korisnik.ime}
+                  <Gavel
+                    size={13}
+                    strokeWidth={2.5}
+                    className="transition-transform duration-200 group-hover:-rotate-[24deg] group-active:rotate-0"
+                  />
+                  Nova aukcija
                 </Link>
 
-                {/* Dugme za odjavu */}
-                <button 
-                  onClick={handleLogout}
-                  className="text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-2 rounded-xl transition"
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-2.5 pl-1.5 pr-3.5 py-1.5 rounded-md border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-[#D4AF37]/30 transition-all"
                 >
-                  Odjava
+                  <span className="relative flex items-center justify-center w-7 h-7 rounded-md bg-[#1B1F27] border border-[#D4AF37]/25 text-[10px] font-bold text-[#E9C25A]">
+                    {inicijali}
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-[#0B0D10]" />
+                  </span>
+                  <span className="text-[12px] font-semibold text-[#D9DAE0] max-w-[100px] truncate">
+                    {korisnik.ime || 'Profil'}
+                  </span>
+                  <LayoutDashboard size={13} className="text-[#6B6D76]" />
+                </Link>
+
+                <button
+                  onClick={handleLogout}
+                  aria-label="Odjava"
+                  className="flex items-center justify-center w-10 h-10 rounded-md border border-white/10 bg-white/[0.03] text-[#6B6D76] hover:text-[#E8677B] hover:border-[#E8677B]/30 hover:bg-[#E8677B]/10 transition-all"
+                >
+                  <LogOut size={15} strokeWidth={2.2} />
                 </button>
               </div>
             ) : (
-              <Link 
-                to="/login" 
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-xl text-sm transition shadow-sm"
+              <Link
+                to="/login"
+                className="flex items-center justify-center text-[11px] font-bold text-[#0B0D10] bg-[#F3F1EA] hover:bg-[#E9C25A] px-6 py-2.5 rounded-md transition-all uppercase tracking-[0.2em] active:scale-[0.97]"
               >
                 Prijava
               </Link>

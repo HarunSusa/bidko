@@ -12,7 +12,6 @@ function AukcijaDetalji() {
 
   const token = localStorage.getItem('token');
 
-  // Funkcija za povlačenje detalja aukcije
   const dohvatiAukciju = async () => {
     try {
       const odgovor = await axios.get(`http://localhost:5000/api/aukcije/${id}`);
@@ -28,12 +27,10 @@ function AukcijaDetalji() {
     dohvatiAukciju();
   }, [id]);
 
-  // Slanje nove ponude (Licitiranje)
   const handleLicitiraj = async (e) => {
     e.preventDefault();
     setPoruka({ tip: '', tekst: '' });
 
-    // JS provjera vrijednosti prije slanja na backend
     if (!iznosPonude || Number(iznosPonude) <= aukcija.trenutnaCijena) {
       setPoruka({ tip: 'greska', tekst: `Ponuda mora biti veća od trenutne cijene (${aukcija.trenutnaCijena} KM).` });
       return;
@@ -46,16 +43,15 @@ function AukcijaDetalji() {
         }
       };
 
-      // USKLAĐENO SA BACKENDOM: Promijenjeno sa /licitiraj na /ponuda
-      const odgovor = await axios.post(
+      await axios.post(
         `http://localhost:5000/api/aukcije/${id}/ponuda`,
         { iznos: Number(iznosPonude) },
         config
       );
 
-      setPoruka({ tip: 'uspjeh', tekst: 'Uspješno ste postavili ponudu! Trenutno vodite.' });
+      setPoruka({ tip: 'uspjeh', tekst: '🚀 Uspješno ste postavili ponudu! Trenutno vodite.' });
       setIznosPonude('');
-      dohvatiAukciju(); // Ponovo povuci podatke sa backenda da se osvježi cijena na ekranu
+      dohvatiAukciju();
     } catch (error) {
       setPoruka({ 
         tip: 'greska', 
@@ -66,100 +62,129 @@ function AukcijaDetalji() {
 
   if (ucitava) {
     return (
-      <div className="flex justify-center items-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex justify-center items-center h-[60vh]">
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-full border-4 border-blue-50 animate-pulse"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 animate-spin"></div>
+        </div>
       </div>
     );
   }
 
   if (!aukcija) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Aukcija nije pronađena.</h2>
-        <Link to="/" className="text-blue-600 hover:underline mt-4 inline-block">Povratak na početnu</Link>
+      <div className="max-w-md mx-auto px-4 py-16 text-center bg-white border border-gray-100 rounded-3xl shadow-sm my-12">
+        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🔍</div>
+        <h2 className="text-xl font-bold text-gray-950">Aukcija nije pronađena</h2>
+        <p className="text-gray-500 text-sm mt-1 mb-6">Moguće je da je artikl uklonjen ili je link neispravan.</p>
+        <Link to="/" className="inline-block w-full bg-gray-950 hover:bg-gray-800 text-white font-medium py-3 rounded-xl text-sm transition shadow-sm">
+          Povratak na početnu
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <Link to="/" className="text-sm font-medium text-gray-500 hover:text-blue-600 transition inline-flex items-center mb-6">
-        ← Nazad na sve aukcije
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Dugme za povratak sa suptilnim hover efektom pomjeranja ulijevo */}
+      <Link to="/" className="group text-sm font-semibold text-gray-500 hover:text-blue-600 transition-all inline-flex items-center mb-8 gap-2">
+        <span className="transform group-hover:-translate-x-1 transition-transform">←</span> Nazad na sve aukcije
       </Link>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100">
-        {/* Lijeva strana: Slika */}
-        <div className="rounded-2xl overflow-hidden bg-gray-100 h-80 md:h-[400px]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 bg-white p-6 sm:p-10 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-gray-50">
+        
+        {/* LIJEVA STRANA: Premium prikaz slike (Zauzima 7 kolona na velikim ekranima) */}
+        <div className="lg:col-span-7 group relative rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 h-96 sm:h-[480px] shadow-inner">
           <img 
             src={aukcija.slika || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'} 
             alt={aukcija.naslov} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
           />
+          <div className="absolute top-4 left-4">
+            <span className="inline-block px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/90 backdrop-blur-md text-gray-900 shadow-sm uppercase tracking-wider">
+              📦 {aukcija.kategorija}
+            </span>
+          </div>
         </div>
 
-        {/* Desna strana: Detalji i Licitacija */}
-        <div className="flex flex-col justify-between">
+        {/* DESNA STRANA: Detalji i Licitacija (Zauzima 5 kolona) */}
+        <div className="lg:col-span-5 flex flex-col justify-between space-y-8">
           <div>
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 mb-3">
-              {aukcija.kategorija}
-            </span>
-            <h1 className="text-3xl font-black text-gray-950 mb-2">{aukcija.naslov}</h1>
-            <p className="text-gray-600 text-sm leading-relaxed mb-6">{aukcija.opis}</p>
-            <div className="mb-6">
-                <CountdownTimer datumIsteka={aukcija.trajanjeDo} />
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-950 tracking-tight leading-none mb-3">
+              {aukcija.naslov}
+            </h1>
+            
+            <p className="text-gray-500 text-sm leading-relaxed mb-6 font-medium">
+              {aukcija.opis}
+            </p>
+            
+            {/* Tajmer sekcija umotana u moderniji kontejner */}
+            <div className="mb-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-50/70">
+              <span className="text-xs font-bold text-blue-700 block mb-1 uppercase tracking-wide">Preostalo vrijeme:</span>
+              <CountdownTimer datumIsteka={aukcija.trajanjeDo} />
             </div>
             
-            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <p className="text-gray-400 text-xs font-medium">Trenutna cijena</p>
-                <p className="text-2xl font-black text-gray-950">{aukcija.trenutnaCijena} KM</p>
+            {/* Box sa cijenama u minimalističkom stilu */}
+            <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-100 grid grid-cols-2 gap-4">
+              <div className="border-r border-gray-200/60 pr-2">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Trenutna cijena</p>
+                <p className="text-3xl font-black text-blue-600 font-mono">{aukcija.trenutnaCijena} <span className="text-lg font-bold">KM</span></p>
               </div>
-              <div>
-                <p className="text-gray-400 text-xs font-medium">Početna cijena</p>
-                <p className="text-lg font-bold text-gray-600">{aukcija.pocetnaCijena} KM</p>
+              <div className="pl-2">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Početna cijena</p>
+                <p className="text-xl font-extrabold text-gray-700 font-mono mt-1">{aukcija.pocetnaCijena} <span className="text-sm font-bold">KM</span></p>
               </div>
             </div>
           </div>
 
-          {/* Sekcija za licitiranje */}
+          {/* SEKCIJA ZA LICITIRANJE */}
           <div className="border-t border-gray-100 pt-6">
             {token ? (
               <form onSubmit={handleLicitiraj} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Vaša ponuda (KM)</label>
-                  <div className="flex gap-3">
-                    <input 
-                      type="number" 
-                      required
-                      min={aukcija.trenutnaCijena + 1}
-                      className="flex-grow px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-blue-600 text-sm transition font-semibold"
-                      placeholder={`Unesite više od ${aukcija.trenutnaCijena}`}
-                      value={iznosPonude}
-                      onChange={(e) => setIznosPonude(e.target.value)}
-                    />
-                    <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-xl text-sm transition shadow-sm whitespace-nowrap">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Vaša ponuda (KM)</label>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-grow">
+                      <input 
+                        type="number" 
+                        required
+                        min={aukcija.trenutnaCijena + 1}
+                        className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-sm transition-all font-bold text-gray-900 font-mono shadow-sm"
+                        placeholder={`Min. ${aukcija.trenutnaCijena + 1}`}
+                        value={iznosPonude}
+                        onChange={(e) => setIznosPonude(e.target.value)}
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">KM</div>
+                    </div>
+                    <button 
+                      type="submit" 
+                      className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold px-6 py-3.5 rounded-xl text-sm transition-all shadow-[0_4px_14px_rgba(37,99,235,0.2)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.3)] whitespace-nowrap"
+                    >
                       Ponudi Cijenu 🔨
                     </button>
                   </div>
                 </div>
 
                 {poruka.tekst && (
-                  <div className={`p-3 rounded-xl text-sm text-center border ${
-                    poruka.tip === 'uspjeh' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
+                  <div className={`p-4 rounded-xl text-sm text-center font-semibold border animate-fade-in transition-all ${
+                    poruka.tip === 'uspjeh' 
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-50' 
+                      : 'bg-rose-50 text-rose-700 border-rose-100 shadow-sm shadow-rose-50'
                   }`}>
                     {poruka.tekst}
                   </div>
                 )}
               </form>
             ) : (
-              <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl text-center">
-                <p className="text-amber-800 text-sm mb-2 font-medium">Morate biti prijavljeni da biste licitirali.</p>
-                <Link to="/login" className="inline-block bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2 px-4 rounded-xl transition">
+              <div className="bg-amber-50/60 border border-amber-100/70 p-5 rounded-2xl text-center backdrop-blur-sm">
+                <p className="text-amber-800 text-sm mb-3 font-semibold">🔒 Morate biti prijavljeni da biste licitirali na ovoj aukciji.</p>
+                <Link to="/login" className="inline-block bg-amber-600 hover:bg-amber-500 active:scale-95 text-white text-xs font-bold py-2.5 px-5 rounded-xl transition-all shadow-sm">
                   Prijavi se odmah
                 </Link>
               </div>
             )}
           </div>
+
         </div>
       </div>
     </div>
