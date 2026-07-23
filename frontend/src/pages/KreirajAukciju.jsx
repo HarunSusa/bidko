@@ -136,11 +136,15 @@ function KreirajAukciju() {
                 >
                   <option value="Kolekcionarstvo">Kolekcionarstvo</option>
                   <option value="Antikviteti">Antikviteti</option>
-                  <option value="Umjetnine">Umjetnine</option>
+                  <option value="Umjetnost">Umjetnost</option>
+                  <option value="Numizmatika">Numizmatika</option>
+                  <option value="Nakit">Nakit</option>
+                  <option value="Knjige">Knjige</option>
+                  <option value="Sport">Sport</option>
                   <option value="Elektronika">Elektronika</option>
                   <option value="Vozila">Vozila</option>
                   <option value="Moda">Moda</option>
-                  <option value="Nekretnine">Nekretnine</option>
+                  <option value="Audio i video">Audio i video</option>
                   <option value="Ostalo">Ostalo</option>
                 </select>
               </div>

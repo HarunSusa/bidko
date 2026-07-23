@@ -78,12 +78,19 @@ function Home() {
               value={izabranaKategorija}
               onChange={(e) => setIzabranaKategorija(e.target.value)}
             >
-              <option value="Sve">Sve Kategorije</option>
-              <option value="Elektronika">Elektronika</option>
-              <option value="Vozila">Vozila</option>
-              <option value="Moda">Moda</option>
-              <option value="Nekretnine">Nekretnine</option>
-              <option value="Ostalo">Ostalo</option>
+              <option value="Sve">Sve kategorije</option>
+    <option value="Antikviteti">Antikviteti</option>
+    <option value="Kolekcionarstvo">Kolekcionarstvo</option>
+    <option value="Umjetnost">Umjetnost</option>
+    <option value="Numizmatika">Numizmatika</option>
+    <option value="Nakit">Nakit</option>
+    <option value="Knjige">Knjige</option>
+    <option value="Sport">Sport</option>
+    <option value="Elektronika">Elektronika</option>
+    <option value="Vozila">Vozila</option>
+    <option value="Moda">Moda</option>
+    <option value="Audio i video">Audio i video</option>
+    <option value="Ostalo">Ostalo</option>
             </select>
           </div>
         </div>
