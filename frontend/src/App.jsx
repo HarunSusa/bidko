@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import AukcijaDetalji from './pages/AukcijaDetalji';
 import KreirajAukciju from './pages/KreirajAukciju';
 import Dashboard from './pages/Dashboard';
+import AdminPanel from "./pages/AdminPanel";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
             <Route path="/aukcija/:id" element={<AukcijaDetalji />} />
             <Route path="/kreiraj-aukciju" element={<KreirajAukciju />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin" element={<AdminPanel />} />
           </Routes>
         </main>
       </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Gavel, LayoutDashboard, LogOut } from 'lucide-react';
+import { Gavel, LayoutDashboard, LogOut, Shield } from 'lucide-react';
 
 // Dodaj u index.html (u <head>), za font logotipa:
 // <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,700;1,900&display=swap" />
@@ -24,7 +24,7 @@ function Navbar() {
 
   return (
     <nav className="relative bg-[#0B0D10]/95 backdrop-blur-xl sticky top-0 z-50 shadow-[0_1px_0_0_rgba(212,175,55,0.15)]">
-      {/* suptilna zlatna linija na dnu */}
+      {/* Suptilna zlatna linija na dnu */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent" />
 
       <div className="max-w-7xl mx-auto px-6 sm:px-8">
@@ -52,6 +52,18 @@ function Navbar() {
 
             {token && korisnik ? (
               <div className="flex items-center space-x-3">
+                
+                {/* ADMIN DUGME - Prilagođeno zlatnom premium stilu */}
+                {korisnik?.isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="flex items-center gap-2 text-[11px] font-bold text-[#E9C25A] border border-[#D4AF37]/30 bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 hover:border-[#D4AF37]/60 px-3.5 py-2.5 rounded-md transition-all uppercase tracking-[0.15em] active:scale-[0.97]"
+                  >
+                    <Shield size={14} className="text-[#D4AF37]" />
+                    Admin
+                  </Link>
+                )}
+
                 <Link
                   to="/kreiraj-aukciju"
                   className="group flex items-center gap-2 text-[11px] font-bold text-[#0B0D10] bg-gradient-to-b from-[#E9C25A] to-[#C89A2E] hover:from-[#F0CE72] hover:to-[#D4AF37] px-4 py-2.5 rounded-md transition-all uppercase tracking-[0.15em] active:scale-[0.97]"

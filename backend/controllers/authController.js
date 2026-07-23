@@ -55,12 +55,12 @@ export const login = async (req, res) => {
       return res.status(400).json({ poruka: 'Pogrešan email ili lozinka.' });
     }
 
-    // Generisanje JWT Tokena koji važi 30 dana
+    // Generisanje JWT Tokena koji važi 30 dana (uključen i isAdmin status)
     const token = jwt.sign(
-  { id: korisnik._id, ime: korisnik.ime }, // Popravljeno: _id umjesto _index
-  process.env.JWT_SECRET,
-  { expiresIn: '30d' }
-);
+      { id: korisnik._id, ime: korisnik.ime, isAdmin: korisnik.isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
 
     res.status(200).json({
       poruka: 'Uspješno ste se prijavili!',
@@ -69,6 +69,7 @@ export const login = async (req, res) => {
         id: korisnik._id,
         ime: korisnik.ime,
         email: korisnik.email,
+        isAdmin: korisnik.isAdmin || false, // <-- DODAT SVOJSTVO ZA ADMINA
         kazneniPoeni: korisnik.kazneniPoeni
       }
     });

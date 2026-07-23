@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   lozinka: { type: String, required: true },
   telefon: { type: String, required: true, unique: true },
+  isAdmin: { type: Boolean, default: false },
   isVerifikovan: { type: Boolean, default: false }, // SMS verifikacija
   
   // SISTEM REPUTACIJE
