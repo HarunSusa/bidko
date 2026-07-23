@@ -17,7 +17,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/registracija" element={<Register />} />
             <Route path="/aukcija/:id" element={<AukcijaDetalji />} />
             <Route path="/kreiraj-aukciju" element={<KreirajAukciju />} />
             <Route path="/dashboard" element={<Dashboard />} />

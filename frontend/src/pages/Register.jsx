@@ -5,6 +5,7 @@ import axios from 'axios';
 function Registracija() {
   const [ime, setIme] = useState('');
   const [email, setEmail] = useState('');
+  const [telefon, setTelefon] = useState(''); // <-- 1. Dodano stanje za telefon
   const [lozinka, setLozinka] = useState('');
   const [greska, setGreska] = useState('');
   const [ucitava, setUcitava] = useState(false);
@@ -16,7 +17,7 @@ function Registracija() {
     setUcitava(true);
 
     try {
-      await axios.post('http://localhost:5000/api/korisnici/register', { ime, email, lozinka });
+      await axios.post('http://localhost:5000/api/auth/registracija', { ime, email, telefon, lozinka });
       navigate('/login');
     } catch (err) {
       setGreska(err.response?.data?.poruka || 'Greška pri registraciji.');
@@ -59,6 +60,18 @@ function Registracija() {
               placeholder="ime@domena.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          {/* 2. Dodano input polje za telefon */}
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Broj telefona</label>
+            <input 
+              type="tel" required
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50/30 dark:bg-slate-950 text-gray-900 dark:text-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-950/30 text-xs font-medium transition-all"
+              placeholder="Npr. 061123456"
+              value={telefon}
+              onChange={(e) => setTelefon(e.target.value)}
             />
           </div>
 

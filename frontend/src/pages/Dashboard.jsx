@@ -100,35 +100,31 @@ function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
           
           {/* LIJEVI SIDEBAR: PROFIL I BRZE AKCIJE */}
-          <div className="lg:col-span-1 bg-white border border-gray-200/80 rounded-2xl p-6 shadow-sm sticky top-24">
-            <div className="text-center pb-6 border-b border-gray-100">
-              <div className="w-20 h-20 bg-gradient-to-tr from-orange-500 to-amber-500 text-white rounded-full flex items-center justify-center font-black text-2xl mx-auto mb-3 shadow-md shadow-orange-500/20">
-                {trenutniKorisnik.ime ? trenutniKorisnik.ime.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <h2 className="text-lg font-bold text-gray-900">
-                {trenutniKorisnik.ime || 'Korisnik'}
-              </h2>
-              <p className="text-xs text-gray-400 font-medium">{trenutniKorisnik.email}</p>
-            </div>
+<div className="lg:col-span-1 bg-white border border-gray-200/80 rounded-2xl p-6 shadow-sm sticky top-24">
+  <div className="text-center pb-6 border-b border-gray-100">
+    <div className="w-20 h-20 bg-gradient-to-tr from-orange-500 to-amber-500 text-white rounded-full flex items-center justify-center font-black text-2xl mx-auto mb-3 shadow-md shadow-orange-500/20">
+      {trenutniKorisnik.ime ? trenutniKorisnik.ime.charAt(0).toUpperCase() : 'U'}
+    </div>
+    <h2 className="text-lg font-bold text-gray-900">
+      {trenutniKorisnik.ime || 'Korisnik'}
+    </h2>
+    <p className="text-xs text-gray-400 font-medium">{trenutniKorisnik.email}</p>
+  </div>
 
-            <div className="py-5 space-y-3">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-500 font-medium">Uloga:</span>
-                <span className="font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-md">Prodavač</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-500 font-medium">Ukupno Oglasa:</span>
-                <span className="font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md">{mojeAukcije.length}</span>
-              </div>
-            </div>
+  <div className="py-5">
+    <div className="flex justify-between items-center text-xs">
+      <span className="text-gray-500 font-medium">Ukupno Oglasa:</span>
+      <span className="font-bold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md">{mojeAukcije.length}</span>
+    </div>
+  </div>
 
-            <Link 
-              to="/kreiraj-aukciju" 
-              className="w-full mt-2 flex items-center justify-center gap-2 bg-[#ff7a00] hover:bg-[#e66e00] text-white font-bold py-3 px-4 rounded-xl text-xs transition-colors shadow-sm"
-            >
-              <span className="text-base font-black">+</span> Objavite Novu Aukciju
-            </Link>
-          </div>
+  <Link 
+    to="/kreiraj-aukciju" 
+    className="w-full mt-2 flex items-center justify-center gap-2 bg-[#ff7a00] hover:bg-[#e66e00] text-white font-bold py-3 px-4 rounded-xl text-xs transition-colors shadow-sm"
+  >
+    <span className="text-base font-black">+</span> Objavite Novu Aukciju
+  </Link>
+</div>
 
           {/* DESNI DIO: STATISTIKA I TABELA AUKCIJA */}
           <div className="lg:col-span-3 space-y-6">

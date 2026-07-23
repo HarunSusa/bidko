@@ -15,7 +15,7 @@ function Login() {
     setUcitava(true);
 
     try {
-      const odgovor = await axios.post('http://localhost:5000/api/korisnici/login', { email, lozinka });
+      const odgovor = await axios.post('http://localhost:5000/api/auth/login', { email, lozinka });
       localStorage.setItem('token', odgovor.data.token);
       localStorage.setItem('korisnik', JSON.stringify(odgovor.data.korisnik));
       navigate('/dashboard');
