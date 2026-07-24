@@ -9,6 +9,7 @@ function Home() {
   
   const [pojamPretrage, setPojamPretrage] = useState('');
   const [izabranaKategorija, setIzabranaKategorija] = useState('Sve');
+  const [filterTip, setFilterTip] = useState('svi'); // 'svi', 'aukcija', 'fiksno'
 
   useEffect(() => {
     const dohvatiAukcije = async () => {
@@ -25,9 +26,19 @@ function Home() {
   }, []);
 
   const filtriraneAukcije = aukcije.filter((aukcija) => {
-    const poklapaNaslov = aukcija.naslov.toLowerCase().includes(pojamPretrage.toLowerCase());
+    const poklapaNaslov = aukcija.naslov ? aukcija.naslov.toLowerCase().includes(pojamPretrage.toLowerCase()) : true;
     const poklapaKategoriju = izabranaKategorija === 'Sve' || aukcija.kategorija === izabranaKategorija;
-    return poklapaNaslov && poklapaKategoriju;
+    
+    // Provjera tipa (pokriva i 'fiksno' i 'fiksna')
+    const jeFiksno = aukcija.tipProdaje === 'fiksno' || aukcija.tipProdaje === 'fiksna';
+    const jeAukcija = aukcija.tipProdaje === 'aukcija' || !aukcija.tipProdaje;
+
+    const poklapaTip = 
+      filterTip === 'svi' || 
+      (filterTip === 'fiksno' && jeFiksno) || 
+      (filterTip === 'aukcija' && jeAukcija);
+
+    return poklapaNaslov && poklapaKategoriju && poklapaTip;
   });
 
   if (ucitava) {
@@ -50,52 +61,89 @@ function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 relative z-10">
         
         {/* HERO SEKCIJA */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
+        <div className="text-center max-w-3xl mx-auto mb-10">
           <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight mb-4">
-            Pronađite artikle na <span className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">Licitaciji</span>
+            Pronađite unikate na <span className="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">Aukciji & Prodaji</span>
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium leading-relaxed">
-            Pratite aukcije uživo, ponudite iznos i osigurajte željene artikle po vašim uslovima.
+            Pratite aukcije uživo ili kupujte po fiksnoj cijeni najzanimljivije antikvitete i dragocjenosti.
           </p>
         </div>
 
         {/* KONTROLNI PANEL ZA PRETRAGU I FILTERE */}
-        <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 backdrop-blur-md rounded-2xl p-3 shadow-sm mb-10 flex flex-col sm:flex-row gap-3 items-center">
-          <div className="relative w-full flex-grow">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
-            <input 
-              type="text" 
-              placeholder="Pretraži aukcije po naslovu..." 
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-600 text-xs font-medium"
-              value={pojamPretrage}
-              onChange={(e) => setPojamPretrage(e.target.value)}
-            />
-          </div>
+        <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 backdrop-blur-md rounded-2xl p-4 shadow-sm mb-10 space-y-3">
           
-          <div className="w-full sm:w-56">
-            <select
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-600 text-xs font-bold cursor-pointer"
-              value={izabranaKategorija}
-              onChange={(e) => setIzabranaKategorija(e.target.value)}
+          {/* TABOVI ZA TIP PRODAJE */}
+          <div className="flex gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-3">
+            <button
+              onClick={() => setFilterTip('svi')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTip === 'svi'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              <option value="Sve">Sve kategorije</option>
-    <option value="Antikviteti">Antikviteti</option>
-    <option value="Kolekcionarstvo">Kolekcionarstvo</option>
-    <option value="Umjetnost">Umjetnost</option>
-    <option value="Numizmatika">Numizmatika</option>
-    <option value="Nakit">Nakit</option>
-    <option value="Knjige">Knjige</option>
-    <option value="Sport">Sport</option>
-    <option value="Elektronika">Elektronika</option>
-    <option value="Vozila">Vozila</option>
-    <option value="Moda">Moda</option>
-    <option value="Audio i video">Audio i video</option>
-    <option value="Ostalo">Ostalo</option>
-            </select>
+              🌐 Svi oglasi
+            </button>
+            <button
+              onClick={() => setFilterTip('aukcija')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTip === 'aukcija'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              ⚡ Samo Aukcije
+            </button>
+            <button
+              onClick={() => setFilterTip('fiksno')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTip === 'fiksno'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              🏷️ Fiksna Cijena
+            </button>
           </div>
+
+          {/* INPUTI ZA PRETRAGU */}
+          <div className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="relative w-full flex-grow">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+              <input 
+                type="text" 
+                placeholder="Pretraži artikle po naslovu..." 
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-600 text-xs font-medium"
+                value={pojamPretrage}
+                onChange={(e) => setPojamPretrage(e.target.value)}
+              />
+            </div>
+            
+            <div className="w-full sm:w-56">
+              <select
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-600 text-xs font-bold cursor-pointer"
+                value={izabranaKategorija}
+                onChange={(e) => setIzabranaKategorija(e.target.value)}
+              >
+                <option value="Sve">Sve kategorije</option>
+                <option value="Antikviteti">Antikviteti</option>
+                <option value="Kolekcionarstvo">Kolekcionarstvo</option>
+                <option value="Umjetnost">Umjetnost</option>
+                <option value="Numizmatika">Numizmatika</option>
+                <option value="Nakit">Nakit</option>
+                <option value="Knjige">Knjige</option>
+                <option value="Audio i video">Audio i video</option>
+                <option value="Elektronika">Elektronika</option>
+                <option value="Vozila">Vozila</option>
+                <option value="Ostalo">Ostalo</option>
+              </select>
+            </div>
+          </div>
+
         </div>
 
-        {/* MREŽA KARTICA (OPTIMIZOVANO ZA DESKTOP: 3 do 4 KOLONE) */}
+        {/* MREŽA KARTICA */}
         {filtriraneAukcije.length === 0 ? (
           <div className="text-center py-16 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-sm mx-auto shadow-sm">
             <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-xl flex items-center justify-center mx-auto mb-3 text-base">💨</div>
@@ -106,6 +154,12 @@ function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filtriraneAukcije.map((aukcija) => {
               const brojPonuda = aukcija.ponude ? aukcija.ponude.length : 0;
+              const jeAukcija = !aukcija.tipProdaje || aukcija.tipProdaje === 'aukcija';
+              
+              // Podrška za sliku bilo da je niz ili pojedinačni string
+              const prikazSlika = (aukcija.slike && aukcija.slike.length > 0) 
+                ? aukcija.slike[0] 
+                : (aukcija.slika || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500');
 
               return (
                 <div 
@@ -113,28 +167,45 @@ function Home() {
                   className="group bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 hover:border-blue-500/30 dark:hover:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between p-4"
                 >
                   <div>
-                    {/* OKVIR SLIKE - MINIMALISTIČKI PREDLOŽAK */}
+                    {/* OKVIR SLIKE */}
                     <div className="h-44 bg-slate-100 dark:bg-slate-950 rounded-xl overflow-hidden mb-4 border border-slate-100 dark:border-slate-800/60 relative">
                       <img 
-                        src={aukcija.slika || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'} 
+                        src={prikazSlika} 
                         alt={aukcija.naslov} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
                       />
+                      {/* TIP PRODAJE BADGE */}
+                      <span className={`absolute top-2 right-2 text-[9px] font-black px-2 py-1 rounded-lg backdrop-blur-md uppercase tracking-wider ${
+                        jeAukcija 
+                          ? 'bg-blue-600/90 text-white' 
+                          : 'bg-emerald-600/90 text-white'
+                      }`}>
+                        {jeAukcija ? '⚡ Aukcija' : '🏷️ Fiksna Cijena'}
+                      </span>
                     </div>
 
-                    {/* STATUS I KATEGORIJA */}
-                    <div className="flex justify-between items-center mb-2.5">
-                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md uppercase tracking-wide">
-                        {aukcija.kategorija}
-                      </span>
+                    {/* STATUS, KATEGORIJA I LOKACIJA */}
+                    <div className="flex justify-between items-center mb-2 font-semibold">
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md uppercase tracking-wide truncate">
+                          {aukcija.kategorija}
+                        </span>
+                        {aukcija.lokacija && (
+                          <span className="text-[10px] text-slate-400 truncate flex items-center gap-0.5">
+                            📍 {aukcija.lokacija}
+                          </span>
+                        )}
+                      </div>
                       
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide ${
-                        brojPonuda > 0 
-                          ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400' 
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                      }`}>
-                        {brojPonuda > 0 ? `${brojPonuda} ${brojPonuda === 1 ? 'ponuda' : 'ponude'}` : 'Nova'}
-                      </span>
+                      {jeAukcija && (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wide shrink-0 ${
+                          brojPonuda > 0 
+                            ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-bold' 
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                        }`}>
+                          {brojPonuda > 0 ? `${brojPonuda} pon.` : 'Nova'}
+                        </span>
+                      )}
                     </div>
 
                     {/* NASLOV I OPIS */}
@@ -146,36 +217,55 @@ function Home() {
                     </p>
 
                     {/* PRIKAZ CIJENE */}
-                    <div className="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-100 dark:border-slate-800/60 grid grid-cols-2 gap-2 mb-3">
-                      <div>
-                        <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider mb-0.5">
-                          {brojPonuda > 0 ? 'Trenutna' : 'Početna'}
-                        </span>
-                        <span className="text-base font-black text-slate-900 dark:text-white">
-                          {aukcija.trenutnaCijena} <span className="text-xs font-bold text-slate-400">KM</span>
-                        </span>
-                      </div>
-                      <div className="border-l border-slate-200 dark:border-slate-800 pl-3">
-                        <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider mb-0.5">Početna</span>
-                        <span className="text-xs font-semibold text-slate-400 block mt-0.5 line-through">
-                          {aukcija.pocetnaCijena} KM
-                        </span>
-                      </div>
+                    <div className="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-100 dark:border-slate-800/60 mb-3">
+                      {jeAukcija ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider mb-0.5">
+                              {brojPonuda > 0 ? 'Trenutna' : 'Početna'}
+                            </span>
+                            <span className="text-base font-black text-slate-900 dark:text-white">
+                              {aukcija.trenutnaCijena || aukcija.pocetnaCijena} <span className="text-xs font-bold text-slate-400">KM</span>
+                            </span>
+                          </div>
+                          {brojPonuda > 0 && (
+                            <div className="border-l border-slate-200 dark:border-slate-800 pl-3">
+                              <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider mb-0.5">Početna</span>
+                              <span className="text-xs font-semibold text-slate-400 block mt-0.5 line-through">
+                                {aukcija.pocetnaCijena} KM
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider mb-0.5">Fiksna cijena</span>
+                          <span className="text-base font-black text-emerald-500">
+                            {aukcija.fiksnaCijena || aukcija.pocetnaCijena} <span className="text-xs font-bold text-slate-400">KM</span>
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* TAJMER */}
-                    <div className="bg-slate-50/50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/60 rounded-xl p-2.5">
-                      <CountdownTimer datumIsteka={aukcija.trajanjeDo} />
-                    </div>
+                    {/* TAJMER (SAMO ZA AUKCIJE) */}
+                    {jeAukcija && aukcija.trajanjeDo && (
+                      <div className="bg-slate-50/50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/60 rounded-xl p-2.5">
+                        <CountdownTimer datumIsteka={aukcija.trajanjeDo} />
+                      </div>
+                    )}
                   </div>
 
                   {/* DUGME */}
                   <div className="mt-4">
                     <Link 
                       to={`/aukcija/${aukcija._id}`} 
-                      className="block text-center bg-slate-900 hover:bg-blue-600 dark:bg-slate-800 dark:hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors shadow-sm"
+                      className={`block text-center font-bold py-2.5 rounded-xl text-xs transition-colors shadow-sm text-white ${
+                        jeAukcija
+                          ? 'bg-slate-900 hover:bg-blue-600 dark:bg-slate-800 dark:hover:bg-blue-600'
+                          : 'bg-emerald-600 hover:bg-emerald-500'
+                      }`}
                     >
-                      Pogledaj Aukciju
+                      {jeAukcija ? 'Pogledaj Aukciju' : 'Pogledaj Oglas'}
                     </Link>
                   </div>
                 </div>

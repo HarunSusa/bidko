@@ -1,25 +1,43 @@
 import Auction from '../models/Auction.js'; // Prilagodi tačan naziv modela ako se zove drugačije
 
 // 1. KREIRANJE NOVE AUKCIJE
+// 1. KREIRANJE NOVE AUKCIJE / FIXNOG OGLASA
 export const kreirajAukciju = async (req, res) => {
   try {
-    // Dodali smo kategorija i trajanjeDo u destrukturiranje
-    const { naslov, opis, pocetnaCijena, slika, kategorija, trajanjeDo } = req.body;
+    const { 
+      naslov, 
+      opis, 
+      pocetnaCijena, 
+      fiksnaCijena, 
+      tipProdaje, 
+      slike, 
+      slika, 
+      kategorija, 
+      lokacija, 
+      trajanjeDo 
+    } = req.body;
+
+    // Podržavamo i niz 'slike' i pojedinačnu 'slika' radi kompatibilnosti
+    const finalSlike = slike && slike.length > 0 ? slike : (slika ? [slika] : []);
 
     const novaAukcija = new Auction({
       naslov,
       opis,
-      pocetnaCijena,
-      trenutnaCijena: pocetnaCijena,
-      slika,
-      kategorija,       // NOVO
-      trajanjeDo,       // NOVO (usklađeno sa modelom)
+      tipProdaje: tipProdaje || 'aukcija',
+      pocetnaCijena: pocetnaCijena || 0,
+      trenutnaCijena: pocetnaCijena || 0,
+      fiksnaCijena: fiksnaCijena || null,
+      slike: finalSlike,
+      kategorija,
+      lokacija: lokacija || '',
+      trajanjeDo: tipProdaje === 'fiksno' ? null : trajanjeDo,
       prodavac: req.korisnik._id
     });
 
     const spasenaAukcija = await novaAukcija.save();
-    res.status(201).json({ poruka: 'Aukcija uspješno kreirana!', aukcija: spasenaAukcija });
+    res.status(201).json({ poruka: 'Oglas uspješno kreiran!', aukcija: spasenaAukcija });
   } catch (error) {
+    console.error("Greška pri kreiranju aukcije:", error);
     res.status(500).json({ poruka: 'Greška pri kreiranju aukcije', greska: error.message });
   }
 };

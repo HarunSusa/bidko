@@ -3,10 +3,14 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 function KreirajAukciju() {
+  // Postavljamo 'fiksno' u skladu sa enum-om u šemi: ['aukcija', 'fiksno', 'kombinovano']
+  const [tipProdaje, setTipProdaje] = useState('aukcija'); 
   const [naslov, setNaslov] = useState('');
   const [opis, setOpis] = useState('');
-  const [pocetnaCijena, setPocetnaCijena] = useState('');
-  const [kategorija, setKategorija] = useState('Elektronika');
+  const [cijena, setCijena] = useState('');
+  const [kategorija, setKategorija] = useState('Antikviteti');
+  const [lokacija, setLokacija] = useState('');
+  const [trajanjeDana, setTrajanjeDana] = useState('7');
   const [slika, setSlika] = useState('');
   const [greska, setGreska] = useState('');
   const [ucitava, setUcitava] = useState(false);
@@ -20,7 +24,7 @@ function KreirajAukciju() {
     setUcitava(true);
 
     const buduciDatum = new Date();
-    buduciDatum.setDate(buduciDatum.getDate() + 7);
+    buduciDatum.setDate(buduciDatum.getDate() + Number(trajanjeDana));
 
     try {
       const config = {
@@ -29,19 +33,30 @@ function KreirajAukciju() {
         }
       };
 
-      const novaAukcija = {
+      const urlSlike = slika || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500';
+
+      // Objekat prilagođen tačno Mongoose šemi
+      const noviOglas = {
+        tipProdaje, // 'aukcija' ili 'fiksno'
         naslov,
         opis,
-        pocetnaCijena: Number(pocetnaCijena),
         kategorija,
-        slika: slika || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500',
-        trajanjeDo: buduciDatum.toISOString()
+        lokacija,
+        slike: [urlSlike], // Šema očekuje niz slika: [{ type: String }]
+        ...(tipProdaje === 'aukcija' ? {
+          pocetnaCijena: Number(cijena),
+          trenutnaCijena: Number(cijena),
+          trajanjeDo: buduciDatum.toISOString()
+        } : {
+          fiksnaCijena: Number(cijena),
+          pocetnaCijena: Number(cijena)
+        })
       };
 
-      await axios.post('http://localhost:5000/api/aukcije', novaAukcija, config);
+      await axios.post('http://localhost:5000/api/aukcije', noviOglas, config);
       navigate('/');
     } catch (err) {
-      setGreska(err.response?.data?.poruka || 'Došlo je do greške pri kreiranju aukcije.');
+      setGreska(err.response?.data?.poruka || 'Došlo je do greške pri kreiranju oglasa.');
     } finally {
       setUcitava(false);
     }
@@ -59,10 +74,10 @@ function KreirajAukciju() {
           {/* ZAGLAVLJE FORME */}
           <div className="text-center mb-8">
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">
-              Nova Aukcija
+              {tipProdaje === 'aukcija' ? 'Nova Aukcija' : 'Novi Oglas sa Fiksnom Cijenom'}
             </h2>
             <p className="text-slate-400 text-xs sm:text-sm font-medium leading-relaxed max-w-sm mx-auto">
-              Unesite detalje o artiklu kako biste pokrenuli novu licitaciju.
+              Unesite detalje o artiklu i izaberite način prodaje.
             </p>
           </div>
 
@@ -77,6 +92,37 @@ function KreirajAukciju() {
           {/* FORMA */}
           <form onSubmit={handleSubmit} className="space-y-5">
             
+            {/* ODABIR TIPA PRODAJE */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                Tip prodaje
+              </label>
+              <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setTipProdaje('aukcija')}
+                  className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    tipProdaje === 'aukcija'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  ⚡ Aukcija (Licitacija)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipProdaje('fiksno')}
+                  className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                    tipProdaje === 'fiksno'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🏷️ Fiksna Cijena
+                </button>
+              </div>
+            </div>
+
             {/* NASLOV */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
@@ -86,7 +132,7 @@ function KreirajAukciju() {
                 type="text" 
                 required
                 className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-xs font-medium"
-                placeholder="Npr. iPhone 15 Pro Max 256GB"
+                placeholder="Npr. Stari džepni sat iz 1920. godine"
                 value={naslov}
                 onChange={(e) => setNaslov(e.target.value)}
               />
@@ -101,17 +147,17 @@ function KreirajAukciju() {
                 required
                 rows="4"
                 className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-xs font-medium resize-none leading-relaxed"
-                placeholder="Detaljno opišite stanje artikla, garanciju, lokaciju ili uslove preuzimanja..."
+                placeholder="Detaljno opišite stanje artikla, porijeklo, očuvanost i uslove slanja..."
                 value={opis}
                 onChange={(e) => setOpis(e.target.value)}
               />
             </div>
 
-            {/* POČETNA CIJENA I KATEGORIJA */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* CIJENA I TRAJANJE */}
+            <div className={`grid grid-cols-1 ${tipProdaje === 'aukcija' ? 'sm:grid-cols-2' : ''} gap-4`}>
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-                  Početna cijena (KM)
+                  {tipProdaje === 'aukcija' ? 'Početna cijena (KM)' : 'Fiksna cijena (KM)'}
                 </label>
                 <input 
                   type="number" 
@@ -119,11 +165,34 @@ function KreirajAukciju() {
                   min="1"
                   className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-xs font-bold font-mono"
                   placeholder="0"
-                  value={pocetnaCijena}
-                  onChange={(e) => setPocetnaCijena(e.target.value)}
+                  value={cijena}
+                  onChange={(e) => setCijena(e.target.value)}
                 />
               </div>
 
+              {tipProdaje === 'aukcija' && (
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                    Trajanje aukcije
+                  </label>
+                  <select 
+                    className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-xs font-bold cursor-pointer"
+                    value={trajanjeDana}
+                    onChange={(e) => setTrajanjeDana(e.target.value)}
+                  >
+                    <option value="3">3 Dana</option>
+                    <option value="5">5 Dana</option>
+                    <option value="7">7 Dana</option>
+                    <option value="10">10 Dana</option>
+                    <option value="14">14 Dana</option>
+                    <option value="30">30 Dana</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* KATEGORIJA I LOKACIJA */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
                   Kategorija
@@ -132,21 +201,32 @@ function KreirajAukciju() {
                   className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-xs font-bold cursor-pointer"
                   value={kategorija}
                   onChange={(e) => setKategorija(e.target.value)}
-                
                 >
-                  <option value="Kolekcionarstvo">Kolekcionarstvo</option>
                   <option value="Antikviteti">Antikviteti</option>
+                  <option value="Kolekcionarstvo">Kolekcionarstvo</option>
                   <option value="Umjetnost">Umjetnost</option>
                   <option value="Numizmatika">Numizmatika</option>
                   <option value="Nakit">Nakit</option>
                   <option value="Knjige">Knjige</option>
-                  <option value="Sport">Sport</option>
+                  <option value="Audio i video">Audio i video</option>
                   <option value="Elektronika">Elektronika</option>
                   <option value="Vozila">Vozila</option>
-                  <option value="Moda">Moda</option>
-                  <option value="Audio i video">Audio i video</option>
                   <option value="Ostalo">Ostalo</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                  Lokacija / Mjesto
+                </label>
+                <input 
+                  type="text" 
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-xs font-medium"
+                  placeholder="Npr. Sarajevo, Banja Luka..."
+                  value={lokacija}
+                  onChange={(e) => setLokacija(e.target.value)}
+                />
               </div>
             </div>
 
@@ -197,7 +277,7 @@ function KreirajAukciju() {
                     <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin"></div>
                   </div>
                 ) : (
-                  'Objavi Aukciju'
+                  tipProdaje === 'aukcija' ? 'Objavi Aukciju' : 'Objavi Oglas'
                 )}
               </button>
             </div>
