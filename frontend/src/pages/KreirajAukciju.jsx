@@ -11,8 +11,9 @@ function KreirajAukciju() {
   const [lokacija, setLokacija] = useState('');
   const [trajanjeDana, setTrajanjeDana] = useState('7');
   
-  // Stanje za sliku (Base64 ili URL)
-  const [slika, setSlika] = useState('');
+  // Stanje za VIŠE slika (niz Base64 stringova ili URL-ova)
+  const [slike, setSlike] = useState([]);
+  const [urlUnos, setUrlUnos] = useState('');
   const [izvorSlike, setIzvorSlike] = useState('fajl'); // 'fajl' ili 'url'
   
   const [greska, setGreska] = useState('');
@@ -21,23 +22,47 @@ function KreirajAukciju() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
 
-  // Funkcija za čitanje fajla sa računara/telefona
+  // Funkcija za dodavanje više fajlova sa uređaja odjednom
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Provjera veličine fajla (opcionalno: npr. do 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setGreska('Slika je prevelika. Izaberite sliku manju od 5MB.');
-        return;
-      }
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSlika(reader.result); // Sprema fajl kao Base64 string
-        setGreska('');
-      };
-      reader.readAsDataURL(file);
+    // Provjera veličine fajlova (max 5MB po slici)
+    const preveliki = files.some(file => file.size > 5 * 1024 * 1024);
+    if (preveliki) {
+      setGreska('Jedna ili više slika prelaze 5MB. Odaberite manje slike.');
+      return;
     }
+
+    setGreska('');
+    
+    // Čitanje svih odabranih fajlova
+    const ucitaniPromises = files.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(ucitaniPromises).then(noveSlikeBase64 => {
+      setSlike(prev => [...prev, ...noveSlikeBase64]);
+    });
+
+    // Resetuj input vrijednost kako bi mogao ponovo učitati isti fajl po potrebi
+    e.target.value = '';
+  };
+
+  // Funkcija za ručno dodavanje slike putem URL-a
+  const handleDodajUrl = () => {
+    if (!urlUnos.trim()) return;
+    setSlike(prev => [...prev, urlUnos.trim()]);
+    setUrlUnos('');
+  };
+
+  // Uklanjanje pojedinačne slike iz niza
+  const handleUkloniSliku = (indexZaUklanjanje) => {
+    setSlike(prev => prev.filter((_, index) => index !== indexZaUklanjanje));
   };
 
   const handleSubmit = async (e) => {
@@ -55,7 +80,10 @@ function KreirajAukciju() {
         }
       };
 
-      const urlSlike = slika || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500';
+      // Ako korisnik nije učitao nijednu sliku, koristi se podrazumijevana slika
+      const finalneSlike = slike.length > 0 
+        ? slike 
+        : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'];
 
       const noviOglas = {
         tipProdaje,
@@ -63,7 +91,7 @@ function KreirajAukciju() {
         opis,
         kategorija,
         lokacija,
-        slike: [urlSlike],
+        slike: finalneSlike,
         ...(tipProdaje === 'aukcija' ? {
           pocetnaCijena: Number(cijena),
           trenutnaCijena: Number(cijena),
@@ -95,7 +123,7 @@ function KreirajAukciju() {
               {tipProdaje === 'aukcija' ? 'Nova Aukcija' : 'Novi Oglas sa Fiksnom Cijenom'}
             </h2>
             <p className="text-slate-400 text-xs sm:text-sm font-medium leading-relaxed max-w-sm mx-auto">
-              Unesite detalje o artiklu i izaberite način prodaje.
+              Unesite detalje o artiklu i dodajte slike.
             </p>
           </div>
 
@@ -246,26 +274,27 @@ function KreirajAukciju() {
               </div>
             </div>
 
-            {/* SLIKA (UČITAVANJE ILI LINK) */}
+            {/* SEKCIJA ZA SLIKE (VIŠE SLIKA) */}
             <div>
               <div className="flex justify-between items-center mb-2">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                  Slika artikla
+                  Slike artikla ({slike.length})
                 </label>
-                {/* Prebacivanje između uvoza fajla i Unosa URL-a */}
+                
+                {/* Prebacivanje između dodavanja fajlova i Web URL-a */}
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => { setIzvorSlike('fajl'); setSlika(''); }}
+                    onClick={() => setIzvorSlike('fajl')}
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all ${
                       izvorSlike === 'fajl' ? 'bg-blue-600/30 text-blue-400 border border-blue-500/30' : 'text-slate-500'
                     }`}
                   >
-                    📱 Prenesi sa uređaja
+                    📱 Sa uređaja
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setIzvorSlike('url'); setSlika(''); }}
+                    onClick={() => setIzvorSlike('url')}
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-all ${
                       izvorSlike === 'url' ? 'bg-blue-600/30 text-blue-400 border border-blue-500/30' : 'text-slate-500'
                     }`}
@@ -276,62 +305,75 @@ function KreirajAukciju() {
               </div>
 
               {izvorSlike === 'fajl' ? (
-                /* INPUT ZA FAJL (RAČUNAR / TELEFON) */
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-800 hover:border-blue-500 rounded-2xl cursor-pointer bg-slate-950/50 transition-all group">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">📁</span>
+                /* INPUT ZA ODABIR VIŠE FAJLOVA */
+                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-800 hover:border-blue-500 rounded-2xl cursor-pointer bg-slate-950/50 transition-all group">
+                  <div className="flex flex-col items-center justify-center pt-4 pb-5">
+                    <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">🖼️</span>
                     <p className="text-xs text-slate-400 font-medium">
-                      <span className="font-bold text-blue-400">Kliknite za odabir</span> ili prevucite sliku
+                      <span className="font-bold text-blue-400">Kliknite za odabir više slika</span> ili ih prevucite
                     </p>
-                    <p className="text-[10px] text-slate-600 mt-1">PNG, JPG, WEBP (Max 5MB)</p>
+                    <p className="text-[10px] text-slate-600 mt-1">PNG, JPG, WEBP (Moguće odabrati više slika)</p>
                   </div>
                   <input 
                     type="file" 
+                    multiple
                     accept="image/*" 
                     className="hidden" 
                     onChange={handleFileChange} 
                   />
                 </label>
               ) : (
-                /* INPUT ZA URL */
-                <input 
-                  type="url" 
-                  className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-xs font-medium"
-                  placeholder="https://images.unsplash.com/..."
-                  value={slika}
-                  onChange={(e) => setSlika(e.target.value)}
-                />
+                /* UNOS PREKO URL LINKA */
+                <div className="flex gap-2">
+                  <input 
+                    type="url" 
+                    className="flex-grow px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-xs font-medium"
+                    placeholder="https://images.unsplash.com/..."
+                    value={urlUnos}
+                    onChange={(e) => setUrlUnos(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDodajUrl}
+                    className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 rounded-xl transition-all"
+                  >
+                    Dodaj
+                  </button>
+                </div>
               )}
             </div>
 
-            {/* PREGLED SLIKE (LIVE PREVIEW) */}
-            {slika && (
-              <div className="p-3 bg-slate-950/90 rounded-2xl border border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-14 h-14 rounded-xl overflow-hidden border border-slate-800 bg-slate-900 flex-shrink-0">
-                    <img 
-                      src={slika} 
-                      alt="Preview" 
-                      className="w-full h-full object-cover" 
-                      onError={(e) => (e.target.style.display = 'none')} 
-                    />
-                  </div>
-                  <div className="overflow-hidden">
-                    <span className="text-[9px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                      Učitana slika
-                    </span>
-                    <p className="text-xs text-slate-400 font-medium truncate mt-1">
-                      {izvorSlike === 'fajl' ? 'Slika sa uređaja spremljena' : slika}
-                    </p>
-                  </div>
+            {/* PREGLED SVIH UČITANIH SLIKA (PREVIEW GALERIJA) */}
+            {slike.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Učitane slike (Prva slika će biti glavna):
+                </span>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 bg-slate-950/50 p-3 rounded-2xl border border-slate-800">
+                  {slike.map((s, index) => (
+                    <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-900">
+                      <img 
+                        src={s} 
+                        alt={`Slika ${index + 1}`} 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => (e.target.style.display = 'none')} 
+                      />
+                      {index === 0 && (
+                        <span className="absolute top-1 left-1 bg-blue-600 text-[8px] font-bold px-1.5 py-0.5 rounded text-white shadow">
+                          Glavna
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleUkloniSliku(index)}
+                        className="absolute top-1 right-1 bg-rose-600/90 hover:bg-rose-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        title="Ukloni sliku"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSlika('')}
-                  className="text-xs font-bold text-rose-400 hover:text-rose-300 px-3 py-1 bg-rose-500/10 rounded-lg border border-rose-500/20"
-                >
-                  Ukloni
-                </button>
               </div>
             )}
 
