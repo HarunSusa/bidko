@@ -4,7 +4,7 @@ import cors from 'cors';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js'; 
 import aukcijaRoutes from './routes/aukcijaRoutes.js';
-import adminRoutes from './routes/adminRoutes.js'; // <-- DODAJ OVU LINIJU
+import adminRoutes from './routes/adminRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -12,7 +12,10 @@ connectDB();
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+
+// Povećaj limit za JSON i URL-encoded podatke (npr. na 50mb)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/aukcije', aukcijaRoutes);
