@@ -1,6 +1,5 @@
 import Auction from '../models/Auction.js'; // Prilagodi tačan naziv modela ako se zove drugačije
 
-// 1. KREIRANJE NOVE AUKCIJE
 // 1. KREIRANJE NOVE AUKCIJE / FIXNOG OGLASA
 export const kreirajAukciju = async (req, res) => {
   try {
@@ -14,7 +13,9 @@ export const kreirajAukciju = async (req, res) => {
       slika, 
       kategorija, 
       lokacija, 
-      trajanjeDo 
+      trajanjeDo,
+      dostava,       // <-- Dodato: prihvatamo dostava objekat iz req.body
+      naciniPlacanja // <-- Dodato: prihvatamo naciniPlacanja niz iz req.body
     } = req.body;
 
     // Podržavamo i niz 'slike' i pojedinačnu 'slika' radi kompatibilnosti
@@ -31,7 +32,9 @@ export const kreirajAukciju = async (req, res) => {
       kategorija,
       lokacija: lokacija || '',
       trajanjeDo: tipProdaje === 'fiksno' ? null : trajanjeDo,
-      prodavac: req.korisnik._id
+      prodavac: req.korisnik._id,
+      dostava,        // <-- Dodato: prosljeđujemo u model
+      naciniPlacanja  // <-- Dodato: prosljeđujemo u model
     });
 
     const spasenaAukcija = await novaAukcija.save();

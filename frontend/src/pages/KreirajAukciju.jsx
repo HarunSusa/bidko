@@ -15,12 +15,28 @@ function KreirajAukciju() {
   const [slike, setSlike] = useState([]);
   const [urlUnos, setUrlUnos] = useState('');
   const [izvorSlike, setIzvorSlike] = useState('fajl'); // 'fajl' ili 'url'
+
+  // Novo dodana stanja za Dostavu i Plaćanje
+  const [rokDostave, setRokDostave] = useState('1-3 dana');
+  const [trosakDostave, setTrosakDostave] = useState('kupac'); // 'kupac' ili 'prodavac'
+  const [licnoPreuzimanje, setLicnoPreuzimanje] = useState(false);
+  const [gradPreuzimanja, setGradPreuzimanja] = useState('');
+  const [naciniPlacanja, setNaciniPlacanja] = useState(['gotovina']);
   
   const [greska, setGreska] = useState('');
   const [ucitava, setUcitava] = useState(false);
 
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
+
+  // Funkcija za hendlanje višestrukog odabira načina plaćanja
+  const handlePlacanjeChange = (id) => {
+    setNaciniPlacanja(prev => 
+      prev.includes(id) 
+        ? prev.filter(item => item !== id) 
+        : [...prev, id]
+    );
+  };
 
   // Funkcija za dodavanje više fajlova sa uređaja odjednom
   const handleFileChange = (e) => {
@@ -68,6 +84,12 @@ function KreirajAukciju() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGreska('');
+
+    if (naciniPlacanja.length === 0) {
+      setGreska('Molimo odaberite bar jedan način plaćanja.');
+      return;
+    }
+
     setUcitava(true);
 
     const buduciDatum = new Date();
@@ -92,6 +114,14 @@ function KreirajAukciju() {
         kategorija,
         lokacija,
         slike: finalneSlike,
+        // Dodani novi detalji o dostavi i plaćanju u payload:
+        dostava: {
+          rok: rokDostave,
+          trosak: trosakDostave,
+          licnoPreuzimanje,
+          gradPreuzimanja: licnoPreuzimanje ? gradPreuzimanja : ''
+        },
+        naciniPlacanja,
         ...(tipProdaje === 'aukcija' ? {
           pocetnaCijena: Number(cijena),
           trenutnaCijena: Number(cijena),
@@ -123,7 +153,7 @@ function KreirajAukciju() {
               {tipProdaje === 'aukcija' ? 'Nova Aukcija' : 'Novi Oglas sa Fiksnom Cijenom'}
             </h2>
             <p className="text-slate-400 text-xs sm:text-sm font-medium leading-relaxed max-w-sm mx-auto">
-              Unesite detalje o artiklu i dodajte slike.
+              Unesite detalje o artiklu, dostavi i dodajte slike.
             </p>
           </div>
 
@@ -274,14 +304,13 @@ function KreirajAukciju() {
               </div>
             </div>
 
-            {/* SEKCIJA ZA SLIKE (VIŠE SLIKA) */}
+            {/* SEKCIJA ZA SLIKE */}
             <div>
               <div className="flex justify-between items-center mb-2">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
                   Slike artikla ({slike.length})
                 </label>
                 
-                {/* Prebacivanje između dodavanja fajlova i Web URL-a */}
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -305,7 +334,6 @@ function KreirajAukciju() {
               </div>
 
               {izvorSlike === 'fajl' ? (
-                /* INPUT ZA ODABIR VIŠE FAJLOVA */
                 <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-800 hover:border-blue-500 rounded-2xl cursor-pointer bg-slate-950/50 transition-all group">
                   <div className="flex flex-col items-center justify-center pt-4 pb-5">
                     <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">🖼️</span>
@@ -323,7 +351,6 @@ function KreirajAukciju() {
                   />
                 </label>
               ) : (
-                /* UNOS PREKO URL LINKA */
                 <div className="flex gap-2">
                   <input 
                     type="url" 
@@ -343,7 +370,7 @@ function KreirajAukciju() {
               )}
             </div>
 
-            {/* PREGLED SVIH UČITANIH SLIKA (PREVIEW GALERIJA) */}
+            {/* PREGLED SVIH UČITANIH SLIKA */}
             {slike.length > 0 && (
               <div className="space-y-2">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
@@ -377,8 +404,115 @@ function KreirajAukciju() {
               </div>
             )}
 
-            {/* DUGME ZA SLANJE */}
-            <div className="pt-2">
+            {/* SEKCIJA: DOSTAVA I PLAĆANJE */}
+            <div className="border-t border-slate-800 pt-6 mt-6 space-y-5">
+              <h3 className="text-xs font-black text-blue-400 uppercase tracking-wider">
+                🚚 Dostava i Plaćanje
+              </h3>
+
+              {/* ROK DOSTAVE & TROŠKOVI */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                    Rok dostave
+                  </label>
+                  <select 
+                    value={rokDostave}
+                    onChange={(e) => setRokDostave(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-slate-300 focus:outline-none focus:border-blue-500 text-xs font-bold cursor-pointer"
+                  >
+                    <option value="1-3 dana">1 - 3 radna dana</option>
+                    <option value="3-5 dana">3 - 5 radnih dana</option>
+                    <option value="5-10 dana">5 - 10 radnih dana</option>
+                    <option value="10+ dana">Više od 10 dana (po narudžbi)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                    Troškove dostave snosi
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setTrosakDostave('kupac')}
+                      className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                        trosakDostave === 'kupac' ? 'bg-blue-600 text-white' : 'text-slate-400'
+                      }`}
+                    >
+                      Kupac
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrosakDostave('prodavac')}
+                      className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                        trosakDostave === 'prodavac' ? 'bg-emerald-600 text-white' : 'text-slate-400'
+                      }`}
+                    >
+                      Prodavac (Besplatno)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* LIČNO PREUZIMANJE */}
+              <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox"
+                    checked={licnoPreuzimanje}
+                    onChange={(e) => setLicnoPreuzimanje(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-800 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900"
+                  />
+                  <span className="text-xs font-bold text-slate-200">Moguće lično preuzimanje</span>
+                </label>
+
+                {licnoPreuzimanje && (
+                  <input 
+                    type="text"
+                    placeholder="Navedite grad/lokaciju za preuzimanje (npr. Sarajevo - Otoka)"
+                    value={gradPreuzimanja}
+                    onChange={(e) => setGradPreuzimanja(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-white text-xs focus:outline-none focus:border-blue-500"
+                  />
+                )}
+              </div>
+
+              {/* NAČIN PLAĆANJA */}
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                  Prihvaćeni načini plaćanja (Odaberite bar jedan)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { id: 'gotovina', label: '💵 Gotovina / Pouzećem' },
+                    { id: 'ziro_racun', label: '💳 Žiro račun / Banka' },
+                    { id: 'paypal', label: '🅿️ PayPal' },
+                    { id: 'crypto', label: '₿ Kripto' }
+                  ].map((metoda) => (
+                    <label 
+                      key={metoda.id}
+                      className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer text-xs font-semibold transition-all ${
+                        naciniPlacanja.includes(metoda.id)
+                          ? 'bg-blue-600/10 border-blue-500/50 text-blue-400'
+                          : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox"
+                        checked={naciniPlacanja.includes(metoda.id)}
+                        onChange={() => handlePlacanjeChange(metoda.id)}
+                        className="hidden" 
+                      />
+                      <span>{metoda.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* DUGME ZA SLANJE (Prebačeno na kraj forme) */}
+            <div className="pt-4">
               <button 
                 type="submit" 
                 disabled={ucitava}

@@ -98,6 +98,59 @@ function AukcijaDetalji() {
     }
   };
 
+  // Pomoćna funkcija za formatiranje dostave (prilagođena MongoDB strukturi)
+  const formatirajDostavu = (dostava) => {
+    if (!dostava) return 'Brza pošta / Lično preuzimanje';
+    if (typeof dostava === 'string') return dostava;
+    
+    if (typeof dostava === 'object') {
+      const dijelovi = [];
+
+      // 1. Rok dostave
+      const rok = dostava.rok || dostava.rokDostave || dostava.vrijemeDostave || dostava.trajanje;
+      if (rok) {
+        dijelovi.push(`Rok: ${rok}`);
+      }
+
+      // 2. Trošak dostave
+      const trosak = dostava.trosak ?? dostava.cijenaDostave ?? dostava.cijena;
+      if (trosak !== undefined && trosak !== null && trosak !== '') {
+        dijelovi.push(`Trošak: ${trosak} KM`);
+      }
+
+      // 3. Grad / Lokacija
+      const lokacija = dostava.lokacija || dostava.grad || dostava.gradPreuzimanja || aukcija?.lokacija;
+      if (lokacija) {
+        dijelovi.push(`Lokacija: ${lokacija}`);
+      } else if (dostava.licnoPreuzimanje || dostava.licno) {
+        dijelovi.push('Lično preuzimanje');
+      }
+
+      return dijelovi.length > 0 ? dijelovi.join(' • ') : 'Brza pošta / Lično preuzimanje';
+    }
+
+    return 'Brza pošta / Lično preuzimanje';
+  };
+
+  // Pomoćna funkcija za formatiranje načina plaćanja (čita niz ili objekat)
+  // Pomoćna funkcija za formatiranje načina plaćanja (čita niz ili objekat)
+  const formatirajPlacanje = (naciniPlacanja, staroPlacanje) => {
+    let rezultat = 'Pouzećem / Gotovina';
+
+    if (Array.isArray(naciniPlacanja) && naciniPlacanja.length > 0) {
+      rezultat = naciniPlacanja.join(', ');
+    } else if (typeof staroPlacanje === 'string' && staroPlacanje) {
+      rezultat = staroPlacanje;
+    } else if (typeof staroPlacanje === 'object' && staroPlacanje) {
+      rezultat = Object.values(staroPlacanje).filter(Boolean).join(', ') || 'Pouzećem / Gotovina';
+    }
+
+    // Zamjenjuje "ziro_racun" sa "Žiro račun", a sve ostale donje crte sa razmakom
+    return rezultat
+      .replace(/ziro_racun/gi, 'Žiro račun')
+      .replace(/_/g, ' ');
+  };
+
   if (ucitava) {
     return (
       <div className="flex justify-center items-center h-[60vh]">
@@ -165,7 +218,7 @@ function AukcijaDetalji() {
               </span>
             </div>
 
-            {/* Dugmad za brzu navigaciju na glavnoj slici (prikazuju se ako ima više slika) */}
+            {/* Dugmad za brzu navigaciju na glavnoj slici */}
             {listaSlika.length > 1 && (
               <>
                 <button
@@ -189,7 +242,7 @@ function AukcijaDetalji() {
             </div>
           </div>
 
-          {/* MALE SLIČICE (THUMBNAILS) — PRIKAZUJU SE AKO IMA VIŠE SLIKA */}
+          {/* MALE SLIČICE (THUMBNAILS) */}
           {listaSlika.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
               {listaSlika.map((s, index) => (
@@ -220,6 +273,29 @@ function AukcijaDetalji() {
             <p className="text-gray-500 text-sm leading-relaxed mb-6 font-medium">
               {aukcija.opis}
             </p>
+
+            {/* SEKCIJA ZA DOSTAVU I PLAĆANJE */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+              <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100/80 flex items-start gap-3">
+                <span className="text-xl">🚚</span>
+                <div>
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Dostava</span>
+                  <span className="text-xs font-bold text-gray-800 block mt-0.5">
+                    {formatirajDostavu(aukcija.dostava)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100/80 flex items-start gap-3">
+                <span className="text-xl">💳</span>
+                <div>
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Plaćanje</span>
+                  <span className="text-xs font-bold text-gray-800 block mt-0.5">
+                    {formatirajPlacanje(aukcija.naciniPlacanja, aukcija.placanje)}
+                  </span>
+                </div>
+              </div>
+            </div>
             
             {/* TAJMER SEKCIJA — PRIKAZUJE SE SAMO ZA AUKCIJE */}
             {jeAukcija && aukcija.trajanjeDo && (
@@ -370,13 +446,12 @@ function AukcijaDetalji() {
         </div>
       </div>
 
-      {/* MODAL / LIGHTBOX ZA PRIKAZ UVEĆANE SLIKE SA STRELICAMA */}
+      {/* MODAL / LIGHTBOX ZA PRIKAZ UVEĆANE SLIKE */}
       {otvorenaSlika && (
         <div 
           onClick={() => setOtvorenaSlika(false)}
           className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-fade-in cursor-zoom-out select-none"
         >
-          {/* Dugme za zatvaranje */}
           <button 
             onClick={() => setOtvorenaSlika(false)}
             className="absolute top-6 right-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-xl transition-all z-10"
@@ -385,7 +460,6 @@ function AukcijaDetalji() {
             ✕
           </button>
 
-          {/* Lijevo dugme u modalu */}
           {listaSlika.length > 1 && (
             <button
               onClick={prethodnaSlika}
@@ -396,7 +470,6 @@ function AukcijaDetalji() {
             </button>
           )}
 
-          {/* Kontejner slike */}
           <div 
             onClick={(e) => e.stopPropagation()} 
             className="relative max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl cursor-default flex flex-col items-center"
@@ -418,7 +491,6 @@ function AukcijaDetalji() {
             </div>
           </div>
 
-          {/* Desno dugme u modalu */}
           {listaSlika.length > 1 && (
             <button
               onClick={sljedecaSlika}
