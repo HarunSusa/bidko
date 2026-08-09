@@ -6,14 +6,18 @@ const userSchema = new mongoose.Schema({
   lozinka: { type: String, required: true },
   telefon: { type: String, required: true, unique: true },
   isAdmin: { type: Boolean, default: false },
-  isVerifikovan: { type: Boolean, default: false }, // SMS verifikacija
+  
+  // VERIFIKACIJA RAČUNA (E-mail)
+  isVerifikovan: { type: Boolean, default: false },
+  verifikacijskiKod: { type: String, default: null },
+  kodIstice: { type: Date, default: null },
   
   // SISTEM REPUTACIJE
   kazneniPoeni: { type: Number, default: 0 }, // Ako stigne do 3 -> BAN
   isBanovan: { type: Boolean, default: false },
   
   datumRegistracije: { type: Date, default: Date.now }
-});
+}, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 export default User;

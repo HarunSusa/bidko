@@ -5,10 +5,8 @@ const auctionSchema = new mongoose.Schema({
   naslov: { type: String, required: true, trim: true },
   opis: { type: String, required: true },
   
-  // DODANO: Lokacija (bila je izostavljena pa se nije snimala u bazu)
   lokacija: { type: String, default: '' },
-
-  slike: [{ type: String }], // Niz linkova do slika proizvoda
+  slike: [{ type: String }],
   kategorija: { type: String, required: true },
   
   // TIP PRODAJE & CIJENE
@@ -17,11 +15,11 @@ const auctionSchema = new mongoose.Schema({
     enum: ['aukcija', 'fiksno', 'kombinovano'], 
     default: 'aukcija' 
   },
-  pocetnaCijena: { type: Number, default: 0, min: 0 }, // Koristi se za aukciju
-  trenutnaCijena: { type: Number, default: 0, min: 0 }, // Najviša ponuda u datom trenu
-  fiksnaCijena: { type: Number, default: null }, // "Kupi odmah" cijena (opcionalno)
+  pocetnaCijena: { type: Number, default: 0, min: 0 },
+  trenutnaCijena: { type: Number, default: 0, min: 0 },
+  fiksnaCijena: { type: Number, default: null },
   
-  // VREMENSKI ROK (Za aukcije)
+  // VREMENSKI ROK
   trajanjeDo: { 
     type: Date, 
     required: function() { return this.tipProdaje !== 'fiksno'; } 
@@ -35,14 +33,13 @@ const auctionSchema = new mongoose.Schema({
     gradPreuzimanja: { type: String, default: '' }
   },
 
-  // ISPRAVLJENO: Pravilna Mongoose sintaksa za niz stringova sa default vrijednošću
   naciniPlacanja: {
     type: [String],
     enum: ['gotovina', 'ziro_racun', 'paypal', 'crypto'],
     default: ['gotovina']
   },
   
-  // TAB 1: ZVANIČNE PONUDE (Samo brojevi/licitacije)
+  // TAB 1: ZVANIČNE PONUDE
   ponude: [
     {
       korisnik: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -51,7 +48,7 @@ const auctionSchema = new mongoose.Schema({
     }
   ],
   
-  // TAB 2: OPŠTA DISKUSIJA (Pitanja i odgovori)
+  // TAB 2: OPŠTA DISKUSIJA
   diskusija: [
     {
       korisnik: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -60,19 +57,23 @@ const auctionSchema = new mongoose.Schema({
     }
   ],
   
-  // STATUS ARTIKLA
+  // STATUS ARTIKLA & AUTOMATIZACIJA
   status: { 
     type: String, 
-    enum: ['aktivno', 'prodato', 'isteklo'], 
+    enum: ['aktivno', 'prodato', 'isteklo', 'zavrseno'], 
     default: 'aktivno' 
   },
-  pobjednik: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null } // Kupac
+  pobjednik: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  
+  // NOVO: Polje za praćenje poslanih e-mail obavještenja
+  obavjestenjePoslano: { type: Boolean, default: false }
 }, { timestamps: true });
 
-// Indeksi za brže pretraživanje i filtriranje u bazi
+// Indeksi za brže pretraživanje u bazi
 auctionSchema.index({ status: 1, trajanjeDo: 1 });
 auctionSchema.index({ kategorija: 1, status: 1 });
 auctionSchema.index({ prodavac: 1 });
 
 const Auction = mongoose.model('Auction', auctionSchema);
+
 export default Auction;
