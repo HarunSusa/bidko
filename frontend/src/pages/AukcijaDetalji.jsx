@@ -5,21 +5,41 @@ import CountdownTimer from '../components/CountdownTimer';
 
 function AukcijaDetalji() {
   const { id } = useParams();
-  const [aukcija, setAukcije] = useState(null);
+  const [aukcija, setAukcija] = useState(null);
   const [ucitava, setUcitava] = useState(true);
   const [iznosPonude, setIznosPonude] = useState('');
   const [poruka, setPoruka] = useState({ tip: '', tekst: '' });
 
-  // Stanje za indeks trenutno aktivne slike i modal
+  // Stanje za poništavanje ponude
+  const [odabranaPonudaZaPonistavanje, setOdabranaPonudaZaPonistavanje] = useState(null);
+  const [razlogPonistavanja, setRazlogPonistavanja] = useState('Tipfeler greška');
+  const [uObradiPonistavanje, setUObradiPonistavanje] = useState(false);
+
+  // Stanje za slike i modal slika
   const [trenutnaSlikaIndex, setTrenutnaSlikaIndex] = useState(0);
   const [otvorenaSlika, setOtvorenaSlika] = useState(false);
 
   const token = localStorage.getItem('token');
 
+  // Pomoćna funkcija za dobijanje ID-a trenutno prijavljenog korisnika iz JWT tokena
+  const dobijKorisnikIdIzTokena = () => {
+    if (!token) return null;
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(window.atob(base64));
+      return payload.id || payload._id;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const trenutniKorisnikId = dobijKorisnikIdIzTokena();
+
   const dohvatiAukciju = async () => {
     try {
       const odgovor = await axios.get(`http://localhost:5000/api/aukcije/${id}`);
-      setAukcije(odgovor.data);
+      setAukcija(odgovor.data);
     } catch (error) {
       console.error("Greška pri učitavanju artikla:", error);
     } finally {
@@ -31,12 +51,10 @@ function AukcijaDetalji() {
     dohvatiAukciju();
   }, [id]);
 
-  // Lista slika ili podrazumijevana slika ako nema niti jedne
   const listaSlika = (aukcija?.slike && aukcija.slike.length > 0)
     ? aukcija.slike
     : [aukcija?.slika || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'];
 
-  // Funkcije za prebacivanje slika
   const sljedecaSlika = (e) => {
     if (e) e.stopPropagation();
     setTrenutnaSlikaIndex((prev) => (prev + 1) % listaSlika.length);
@@ -47,17 +65,17 @@ function AukcijaDetalji() {
     setTrenutnaSlikaIndex((prev) => (prev - 1 + listaSlika.length) % listaSlika.length);
   };
 
-  // Navigacija preko tastature (ESC, Strelica Lijevo, Strelica Desno)
+  // Upravljanje navigacijom pomoću tastature unutar modala slika
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!otvorenaSlika) return;
+    if (!otvorenaSlika) return;
 
+    const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setOtvorenaSlika(false);
       } else if (e.key === 'ArrowRight') {
-        sljedecaSlika();
+        setTrenutnaSlikaIndex((prev) => (prev + 1) % listaSlika.length);
       } else if (e.key === 'ArrowLeft') {
-        prethodnaSlika();
+        setTrenutnaSlikaIndex((prev) => (prev - 1 + listaSlika.length) % listaSlika.length);
       }
     };
 
@@ -69,23 +87,16 @@ function AukcijaDetalji() {
     e.preventDefault();
     setPoruka({ tip: '', tekst: '' });
 
-    if (!iznosPonude || Number(iznosPonude) <= aukcija.trenutnaCijena) {
-      setPoruka({ tip: 'greska', tekst: `Ponuda mora biti veća od trenutne cijene (${aukcija.trenutnaCijena} KM).` });
+    const trenutnaCijena = aukcija?.trenutnaCijena ?? aukcija?.pocetnaCijena ?? 0;
+
+    if (!iznosPonude || Number(iznosPonude) <= trenutnaCijena) {
+      setPoruka({ tip: 'greska', tekst: `Ponuda mora biti veća od trenutne cijene (${trenutnaCijena} KM).` });
       return;
     }
 
     try {
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      };
-
-      await axios.post(
-        `http://localhost:5000/api/aukcije/${id}/ponuda`,
-        { iznos: Number(iznosPonude) },
-        config
-      );
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.post(`http://localhost:5000/api/aukcije/${id}/ponuda`, { iznos: Number(iznosPonude) }, config);
 
       setPoruka({ tip: 'uspjeh', tekst: '🚀 Uspješno ste postavili ponudu! Trenutno vodite.' });
       setIznosPonude('');
@@ -98,57 +109,80 @@ function AukcijaDetalji() {
     }
   };
 
-  // Pomoćna funkcija za formatiranje dostave (prilagođena MongoDB strukturi)
+  // Funkcija za provjeru vidljivosti dugmeta "Poništi"
+  const mozePonistitiPonudu = (ponuda) => {
+    if (!aukcija) return false;
+
+    const sada = new Date();
+
+    // Provjera da li ima manje od 12 sati do kraja aukcije
+    if (aukcija.trajanjeDo) {
+      const preostaloSati = (new Date(aukcija.trajanjeDo) - sada) / (1000 * 60 * 60);
+      if (preostaloSati < 12) return false;
+    }
+
+    const datumPonude = new Date(ponuda.vrijemePonude || ponuda.createdAt);
+    const trajanjeOdPonudeMinuta = (sada - datumPonude) / (1000 * 60);
+
+    const jeUnutar15Min = trajanjeOdPonudeMinuta <= 15;
+
+    const datumIzmjeneAukcije = aukcija.updatedAt ? new Date(aukcija.updatedAt) : null;
+    const artikalIzmijenjenNakonPonude = datumIzmjeneAukcije ? datumIzmjeneAukcije > datumPonude : false;
+
+    return jeUnutar15Min || artikalIzmijenjenNakonPonude;
+  };
+
+  // Poziv API-ja za poništavanje ponude
+  const handlePotvrdiPonistavanje = async () => {
+    if (!odabranaPonudaZaPonistavanje) return;
+    setUObradiPonistavanje(true);
+
+    try {
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.put(
+        `http://localhost:5000/api/aukcije/${id}/ponude/${odabranaPonudaZaPonistavanje._id}/ponisti`,
+        { razlog: razlogPonistavanja },
+        config
+      );
+
+      setPoruka({ tip: 'uspjeh', tekst: 'Ponuda je uspješno poništena.' });
+      setOdabranaPonudaZaPonistavanje(null);
+      dohvatiAukciju();
+    } catch (error) {
+      setPoruka({
+        tip: 'greska',
+        tekst: error.response?.data?.poruka || 'Greška pri poništavanju ponude.'
+      });
+    } finally {
+      setUObradiPonistavanje(false);
+    }
+  };
+
   const formatirajDostavu = (dostava) => {
     if (!dostava) return 'Brza pošta / Lično preuzimanje';
     if (typeof dostava === 'string') return dostava;
-    
     if (typeof dostava === 'object') {
       const dijelovi = [];
-
-      // 1. Rok dostave
       const rok = dostava.rok || dostava.rokDostave || dostava.vrijemeDostave || dostava.trajanje;
-      if (rok) {
-        dijelovi.push(`Rok: ${rok}`);
-      }
-
-      // 2. Trošak dostave
+      if (rok) dijelovi.push(`Rok: ${rok}`);
       const trosak = dostava.trosak ?? dostava.cijenaDostave ?? dostava.cijena;
-      if (trosak !== undefined && trosak !== null && trosak !== '') {
-        dijelovi.push(`Trošak: ${trosak} KM`);
-      }
-
-      // 3. Grad / Lokacija
+      if (trosak !== undefined && trosak !== null && trosak !== '') dijelovi.push(`Trošak: ${trosak} KM`);
       const lokacija = dostava.lokacija || dostava.grad || dostava.gradPreuzimanja || aukcija?.lokacija;
-      if (lokacija) {
-        dijelovi.push(`Lokacija: ${lokacija}`);
-      } else if (dostava.licnoPreuzimanje || dostava.licno) {
-        dijelovi.push('Lično preuzimanje');
-      }
-
+      if (lokacija) dijelovi.push(`Lokacija: ${lokacija}`);
+      else if (dostava.licnoPreuzimanje || dostava.licno) dijelovi.push('Lično preuzimanje');
       return dijelovi.length > 0 ? dijelovi.join(' • ') : 'Brza pošta / Lično preuzimanje';
     }
-
     return 'Brza pošta / Lično preuzimanje';
   };
 
-  // Pomoćna funkcija za formatiranje načina plaćanja (čita niz ili objekat)
-  // Pomoćna funkcija za formatiranje načina plaćanja (čita niz ili objekat)
   const formatirajPlacanje = (naciniPlacanja, staroPlacanje) => {
     let rezultat = 'Pouzećem / Gotovina';
-
-    if (Array.isArray(naciniPlacanja) && naciniPlacanja.length > 0) {
-      rezultat = naciniPlacanja.join(', ');
-    } else if (typeof staroPlacanje === 'string' && staroPlacanje) {
-      rezultat = staroPlacanje;
-    } else if (typeof staroPlacanje === 'object' && staroPlacanje) {
+    if (Array.isArray(naciniPlacanja) && naciniPlacanja.length > 0) rezultat = naciniPlacanja.join(', ');
+    else if (typeof staroPlacanje === 'string' && staroPlacanje) rezultat = staroPlacanje;
+    else if (typeof staroPlacanje === 'object' && staroPlacanje) {
       rezultat = Object.values(staroPlacanje).filter(Boolean).join(', ') || 'Pouzećem / Gotovina';
     }
-
-    // Zamjenjuje "ziro_racun" sa "Žiro račun", a sve ostale donje crte sa razmakom
-    return rezultat
-      .replace(/ziro_racun/gi, 'Žiro račun')
-      .replace(/_/g, ' ');
+    return rezultat.replace(/ziro_racun/gi, 'Žiro račun').replace(/_/g, ' ');
   };
 
   if (ucitava) {
@@ -176,136 +210,77 @@ function AukcijaDetalji() {
   }
 
   const jeAukcija = !aukcija.tipProdaje || aukcija.tipProdaje === 'aukcija';
-
-  const sortiranePonude = aukcija.ponude 
-    ? [...aukcija.ponude].reverse() 
-    : [];
-
+  const sortiranePonude = aukcija.ponude ? [...aukcija.ponude].reverse() : [];
   const aktivnaSlikaUrl = listaSlika[trenutnaSlikaIndex];
+  const minimalnaSlijedecaPonuda = (aukcija.trenutnaCijena || aukcija.pocetnaCijena || 0) + 1;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* Dugme za povratak */}
       <Link to="/" className="group text-sm font-semibold text-gray-500 hover:text-blue-600 transition-all inline-flex items-center mb-8 gap-2">
         <span className="transform group-hover:-translate-x-1 transition-transform">←</span> Nazad na sve oglase
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 bg-white p-6 sm:p-10 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-gray-50">
         
-        {/* LIJEVA STRANA: Prikaz slika sa thumbnaillovima */}
+        {/* LIJEVA STRANA */}
         <div className="lg:col-span-7 flex flex-col space-y-4">
-          
-          {/* GLAVNA SLIKA */}
-          <div 
-            onClick={() => setOtvorenaSlika(true)}
-            className="group relative rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 h-80 sm:h-[440px] shadow-inner cursor-zoom-in"
-          >
-            <img 
-              src={aktivnaSlikaUrl} 
-              alt={aukcija.naslov} 
-              className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
-            />
-            
-            {/* Oznake kategorije i tipa prodaje */}
+          <div onClick={() => setOtvorenaSlika(true)} className="group relative rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 h-80 sm:h-[440px] shadow-inner cursor-zoom-in">
+            <img src={aktivnaSlikaUrl} alt={aukcija.naslov} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out" />
             <div className="absolute top-4 left-4 flex gap-2 pointer-events-none">
-              <span className="inline-block px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/90 backdrop-blur-md text-gray-900 shadow-sm uppercase tracking-wider">
-                📦 {aukcija.kategorija}
-              </span>
-              <span className={`inline-block px-3.5 py-1.5 rounded-full text-xs font-bold text-white shadow-sm uppercase tracking-wider ${
-                jeAukcija ? 'bg-blue-600' : 'bg-emerald-600'
-              }`}>
+              <span className="inline-block px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/90 backdrop-blur-md text-gray-900 shadow-sm uppercase tracking-wider">📦 {aukcija.kategorija}</span>
+              <span className={`inline-block px-3.5 py-1.5 rounded-full text-xs font-bold text-white shadow-sm uppercase tracking-wider ${jeAukcija ? 'bg-blue-600' : 'bg-emerald-600'}`}>
                 {jeAukcija ? '⚡ Aukcija' : '🏷️ Fiksna Cijena'}
               </span>
             </div>
-
-            {/* Dugmad za brzu navigaciju na glavnoj slici */}
             {listaSlika.length > 1 && (
               <>
-                <button
-                  onClick={prethodnaSlika}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center backdrop-blur-sm transition-all opacity-80 hover:opacity-100"
-                >
-                  ❮
-                </button>
-                <button
-                  onClick={sljedecaSlika}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center backdrop-blur-sm transition-all opacity-80 hover:opacity-100"
-                >
-                  ❯
-                </button>
+                <button onClick={prethodnaSlika} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center backdrop-blur-sm transition-all opacity-80 hover:opacity-100">❮</button>
+                <button onClick={sljedecaSlika} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white rounded-full w-9 h-9 flex items-center justify-center backdrop-blur-sm transition-all opacity-80 hover:opacity-100">❯</button>
               </>
             )}
-
-            {/* Indikator za uvećanje slike */}
-            <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md text-white text-xs font-medium px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
-              🔍 Klikni za uvećanje
-            </div>
           </div>
 
-          {/* MALE SLIČICE (THUMBNAILS) */}
           {listaSlika.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
               {listaSlika.map((s, index) => (
-                <button
-                  key={index}
-                  onClick={() => setTrenutnaSlikaIndex(index)}
-                  className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                    index === trenutnaSlikaIndex 
-                      ? 'border-blue-600 scale-105 shadow-md' 
-                      : 'border-transparent opacity-60 hover:opacity-100'
-                  }`}
-                >
+                <button key={index} onClick={() => setTrenutnaSlikaIndex(index)} className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${index === trenutnaSlikaIndex ? 'border-blue-600 scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}>
                   <img src={s} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
           )}
-
         </div>
 
-        {/* DESNA STRANA: Detalji */}
+        {/* DESNA STRANA */}
         <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black text-gray-950 tracking-tight leading-none mb-3">
-              {aukcija.naslov}
-            </h1>
-            
-            <p className="text-gray-500 text-sm leading-relaxed mb-6 font-medium">
-              {aukcija.opis}
-            </p>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-950 tracking-tight leading-none mb-3">{aukcija.naslov}</h1>
+            <p className="text-gray-500 text-sm leading-relaxed mb-6 font-medium">{aukcija.opis}</p>
 
-            {/* SEKCIJA ZA DOSTAVU I PLAĆANJE */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100/80 flex items-start gap-3">
                 <span className="text-xl">🚚</span>
                 <div>
                   <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Dostava</span>
-                  <span className="text-xs font-bold text-gray-800 block mt-0.5">
-                    {formatirajDostavu(aukcija.dostava)}
-                  </span>
+                  <span className="text-xs font-bold text-gray-800 block mt-0.5">{formatirajDostavu(aukcija.dostava)}</span>
                 </div>
               </div>
-
               <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100/80 flex items-start gap-3">
                 <span className="text-xl">💳</span>
                 <div>
                   <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Plaćanje</span>
-                  <span className="text-xs font-bold text-gray-800 block mt-0.5">
-                    {formatirajPlacanje(aukcija.naciniPlacanja, aukcija.placanje)}
-                  </span>
+                  <span className="text-xs font-bold text-gray-800 block mt-0.5">{formatirajPlacanje(aukcija.naciniPlacanja, aukcija.placanje)}</span>
                 </div>
               </div>
             </div>
-            
-            {/* TAJMER SEKCIJA — PRIKAZUJE SE SAMO ZA AUKCIJE */}
+
             {jeAukcija && aukcija.trajanjeDo && (
               <div className="mb-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-50/70">
                 <span className="text-xs font-bold text-blue-700 block mb-1 uppercase tracking-wide">Preostalo vrijeme:</span>
                 <CountdownTimer datumIsteka={aukcija.trajanjeDo} />
               </div>
             )}
-            
-            {/* BOX SA CIJENAMA */}
+
             <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-100 shadow-sm">
               {jeAukcija ? (
                 <div className="grid grid-cols-2 gap-4">
@@ -321,15 +296,13 @@ function AukcijaDetalji() {
               ) : (
                 <div>
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Fiksna prodajna cijena</p>
-                  <p className="text-3xl font-black text-emerald-600 font-mono">
-                    {aukcija.fiksnaCijena || aukcija.pocetnaCijena} <span className="text-lg font-bold">KM</span>
-                  </p>
+                  <p className="text-3xl font-black text-emerald-600 font-mono">{aukcija.fiksnaCijena || aukcija.pocetnaCijena} <span className="text-lg font-bold">KM</span></p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* HISTORIJAT PONUDA — PRIKAZUJE SE SAMO ZA AUKCIJE */}
+          {/* HISTORIJAT PONUDA */}
           {jeAukcija && (
             <div className="bg-gray-50/50 rounded-2xl border border-gray-100 p-4">
               <div className="flex justify-between items-center mb-3">
@@ -344,34 +317,64 @@ function AukcijaDetalji() {
               {sortiranePonude.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-3 italic">Još uvijek nema postavljenih ponuda. Budi prvi!</p>
               ) : (
-                <div className="max-h-40 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                   {sortiranePonude.map((ponuda, index) => {
                     const imeKorisnika = ponuda.korisnik?.ime || ponuda.korisnik?.korisnickoIme || ponuda.korisnik?.email || 'Korisnik';
-                    const jeNajveca = index === 0;
+                    const ponudaKorisnikId = ponuda.korisnik?._id || ponuda.korisnik;
+                    const jeMojaPonuda = trenutniKorisnikId && ponudaKorisnikId === trenutniKorisnikId;
+                    const jePonisteno = ponuda.status === 'ponisteno';
+                    
+                    const prvaAktivna = sortiranePonude.find(p => p.status !== 'ponisteno');
+                    const jeNajveca = prvaAktivna && prvaAktivna._id === ponuda._id;
+
+                    const pravoNaPonistavanje = jeMojaPonuda && !jePonisteno && mozePonistitiPonudu(ponuda);
 
                     return (
                       <div 
                         key={ponuda._id || index} 
                         className={`flex justify-between items-center p-2.5 rounded-xl border text-xs transition-all ${
-                          jeNajveca 
-                            ? 'bg-blue-50/80 border-blue-200/80 font-bold text-blue-950 shadow-sm' 
-                            : 'bg-white border-gray-100 text-gray-600'
+                          jePonisteno 
+                            ? 'bg-gray-100/70 border-gray-200 text-gray-400 opacity-70' 
+                            : jeNajveca 
+                              ? 'bg-blue-50/80 border-blue-200/80 font-bold text-blue-950 shadow-sm' 
+                              : 'bg-white border-gray-100 text-gray-600'
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
-                            jeNajveca ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+                            jePonisteno 
+                              ? 'bg-gray-200 text-gray-500' 
+                              : jeNajveca 
+                                ? 'bg-blue-600 text-white' 
+                                : 'bg-gray-100 text-gray-500'
                           }`}>
-                            {jeNajveca ? '👑' : `#${sortiranePonude.length - index}`}
+                            {jePonisteno ? '❌' : jeNajveca ? '👑' : `#${sortiranePonude.length - index}`}
                           </span>
-                          <span className="font-semibold truncate max-w-[120px] sm:max-w-[160px]">
-                            {imeKorisnika}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="font-semibold truncate max-w-[100px] sm:max-w-[130px]">
+                              {imeKorisnika} {jeMojaPonuda && '(Vi)'}
+                            </span>
+                            {jePonisteno && (
+                              <span className="text-[10px] text-red-500 font-medium">
+                                Poništeno ({ponuda.razlogPonistavanja || 'Razlog nepoznat'})
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="font-mono font-bold text-right">
-                          <span className={jeNajveca ? 'text-blue-600 text-sm' : 'text-gray-800'}>
+
+                        <div className="flex items-center gap-3">
+                          <span className={`font-mono font-bold ${jePonisteno ? 'line-through text-gray-400' : jeNajveca ? 'text-blue-600 text-sm' : 'text-gray-800'}`}>
                             {ponuda.iznos} KM
                           </span>
+
+                          {pravoNaPonistavanje && (
+                            <button
+                              onClick={() => setOdabranaPonudaZaPonistavanje(ponuda)}
+                              className="text-[10px] text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-md font-bold transition-all"
+                            >
+                              Poništi
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -393,9 +396,9 @@ function AukcijaDetalji() {
                         <input 
                           type="number" 
                           required
-                          min={(aukcija.trenutnaCijena || aukcija.pocetnaCijena) + 1}
+                          min={minimalnaSlijedecaPonuda}
                           className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-sm transition-all font-bold text-gray-900 font-mono shadow-sm"
-                          placeholder={`Min. ${(aukcija.trenutnaCijena || aukcija.pocetnaCijena) + 1}`}
+                          placeholder={`Min. ${minimalnaSlijedecaPonuda}`}
                           value={iznosPonude}
                           onChange={(e) => setIznosPonude(e.target.value)}
                         />
@@ -403,7 +406,7 @@ function AukcijaDetalji() {
                       </div>
                       <button 
                         type="submit" 
-                        className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold px-6 py-3.5 rounded-xl text-sm transition-all shadow-[0_4px_14px_rgba(37,99,235,0.2)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.3)] whitespace-nowrap"
+                        className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold px-6 py-3.5 rounded-xl text-sm transition-all shadow-[0_4px_14px_rgba(37,99,235,0.2)] whitespace-nowrap"
                       >
                         Ponudi Cijenu 🔨
                       </button>
@@ -411,94 +414,87 @@ function AukcijaDetalji() {
                   </div>
 
                   {poruka.tekst && (
-                    <div className={`p-4 rounded-xl text-sm text-center font-semibold border animate-fade-in transition-all ${
-                      poruka.tip === 'uspjeh' 
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-50' 
-                        : 'bg-rose-50 text-rose-700 border-rose-100 shadow-sm shadow-rose-50'
+                    <div className={`p-4 rounded-xl text-sm text-center font-semibold border ${
+                      poruka.tip === 'uspjeh' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'
                     }`}>
                       {poruka.tekst}
                     </div>
                   )}
                 </form>
               ) : (
-                <div className="bg-amber-50/60 border border-amber-100/70 p-5 rounded-2xl text-center backdrop-blur-sm">
+                <div className="bg-amber-50/60 border border-amber-100/70 p-5 rounded-2xl text-center">
                   <p className="text-amber-800 text-sm mb-3 font-semibold">🔒 Morate biti prijavljeni da biste licitirali na ovoj aukciji.</p>
-                  <Link to="/login" className="inline-block bg-amber-600 hover:bg-amber-500 active:scale-95 text-white text-xs font-bold py-2.5 px-5 rounded-xl transition-all shadow-sm">
+                  <Link to="/login" className="inline-block bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold py-2.5 px-5 rounded-xl transition-all shadow-sm">
                     Prijavi se odmah
                   </Link>
                 </div>
               )
             ) : (
-              <div className="space-y-3">
-                <button 
-                  onClick={() => alert('Kupovina je u obradi!')}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold py-4 rounded-2xl text-sm transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
-                >
-                  <span>🛒</span> Kupi odmah po fiksnoj cijeni
-                </button>
-                <p className="text-[11px] text-gray-400 text-center font-medium">
-                  Artikal se prodaje po fiksnoj cijeni i nema opciju licitiranja.
-                </p>
-              </div>
+              <button 
+                onClick={() => alert('Kupovina je u obradi!')}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <span>🛒</span> Kupi odmah po fiksnoj cijeni
+              </button>
             )}
           </div>
 
         </div>
       </div>
 
-      {/* MODAL / LIGHTBOX ZA PRIKAZ UVEĆANE SLIKE */}
-      {otvorenaSlika && (
-        <div 
-          onClick={() => setOtvorenaSlika(false)}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-fade-in cursor-zoom-out select-none"
-        >
-          <button 
-            onClick={() => setOtvorenaSlika(false)}
-            className="absolute top-6 right-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-xl transition-all z-10"
-            title="Zatvori (Esc)"
-          >
-            ✕
-          </button>
+      {/* MODAL ZA PONIŠTAVANJE PONUDE */}
+      {odabranaPonudaZaPonistavanje && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Poništavanje ponude</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Jeste li sigurni da želite poništiti ponudu od <strong className="text-gray-800">{odabranaPonudaZaPonistavanje.iznos} KM</strong>?
+            </p>
 
-          {listaSlika.length > 1 && (
-            <button
-              onClick={prethodnaSlika}
-              className="absolute left-4 sm:left-8 text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center text-2xl transition-all z-10"
-              title="Prethodna slika (Lijeva strelica)"
-            >
-              ❮
-            </button>
-          )}
+            <div className="mb-5">
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Odaberite razlog:</label>
+              <select
+                value={razlogPonistavanja}
+                onChange={(e) => setRazlogPonistavanja(e.target.value)}
+                className="w-full p-3 rounded-xl border border-gray-200 text-xs font-semibold text-gray-800 focus:outline-none focus:border-blue-600"
+              >
+                <option value="Tipfeler greška">Tipfeler greška pri unosu cijene</option>
+                <option value="Prodavač izmijenio opis ili stanje artikla">Prodavač izmijenio opis ili stanje artikla</option>
+              </select>
+            </div>
 
-          <div 
-            onClick={(e) => e.stopPropagation()} 
-            className="relative max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl cursor-default flex flex-col items-center"
-          >
-            <img 
-              src={aktivnaSlikaUrl} 
-              alt={aukcija.naslov} 
-              className="w-full h-full object-contain max-h-[80vh] rounded-2xl shadow-2xl"
-            />
-            <div className="flex items-center justify-between w-full mt-3 px-2">
-              <p className="text-xs text-slate-400 font-medium truncate">
-                {aukcija.naslov}
-              </p>
-              {listaSlika.length > 1 && (
-                <p className="text-xs text-blue-400 font-mono font-bold">
-                  {trenutnaSlikaIndex + 1} / {listaSlika.length}
-                </p>
-              )}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setOdabranaPonudaZaPonistavanje(null)}
+                disabled={uObradiPonistavanje}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50"
+              >
+                Odustani
+              </button>
+              <button
+                onClick={handlePotvrdiPonistavanje}
+                disabled={uObradiPonistavanje}
+                className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm"
+              >
+                {uObradiPonistavanje ? 'Poništavanje...' : 'Potvrdi poništavanje'}
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
+      {/* LIGHTBOX MODAL ZA SLIKE */}
+      {otvorenaSlika && (
+        <div onClick={() => setOtvorenaSlika(false)} className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <button onClick={() => setOtvorenaSlika(false)} className="absolute top-6 right-6 text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-xl z-10">✕</button>
           {listaSlika.length > 1 && (
-            <button
-              onClick={sljedecaSlika}
-              className="absolute right-4 sm:right-8 text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center text-2xl transition-all z-10"
-              title="Sljedeća slika (Desna strelica)"
-            >
-              ❯
-            </button>
+            <button onClick={prethodnaSlika} className="absolute left-4 text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-10">❮</button>
+          )}
+          <div onClick={(e) => e.stopPropagation()} className="relative max-w-5xl max-h-[90vh] rounded-2xl flex flex-col items-center">
+            <img src={aktivnaSlikaUrl} alt={aukcija.naslov} className="w-full h-full object-contain max-h-[80vh] rounded-2xl shadow-2xl" />
+          </div>
+          {listaSlika.length > 1 && (
+            <button onClick={sljedecaSlika} className="absolute right-4 text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center text-2xl z-10">❯</button>
           )}
         </div>
       )}

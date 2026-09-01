@@ -1,6 +1,9 @@
-import Auction from '../models/Auction.js'; // Prilagodi tačan naziv modela ako se zove drugačije
+import Auction from '../models/Auction.js';
 
-// 1. KREIRANJE NOVE AUKCIJE / FIXNOG OGLASA
+// Pomoćna funkcija za eskapiranje regex znakova u pretrazi
+const escapeRegex = (text) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+
+// 1. KREIRANJE NOVE AUKCIJE / FIKSNOG OGLASA
 export const kreirajAukciju = async (req, res) => {
   try {
     const { 
@@ -14,27 +17,28 @@ export const kreirajAukciju = async (req, res) => {
       kategorija, 
       lokacija, 
       trajanjeDo,
-      dostava,       // <-- Dodato: prihvatamo dostava objekat iz req.body
-      naciniPlacanja // <-- Dodato: prihvatamo naciniPlacanja niz iz req.body
+      dostava,
+      naciniPlacanja
     } = req.body;
 
-    // Podržavamo i niz 'slike' i pojedinačnu 'slika' radi kompatibilnosti
     const finalSlike = slike && slike.length > 0 ? slike : (slika ? [slika] : []);
+    const definisaniTip = tipProdaje || 'aukcija';
+    const inicijalnaCijena = Number(pocetnaCijena) || 0;
 
     const novaAukcija = new Auction({
       naslov,
       opis,
-      tipProdaje: tipProdaje || 'aukcija',
-      pocetnaCijena: pocetnaCijena || 0,
-      trenutnaCijena: pocetnaCijena || 0,
-      fiksnaCijena: fiksnaCijena || null,
+      tipProdaje: definisaniTip,
+      pocetnaCijena: inicijalnaCijena,
+      trenutnaCijena: inicijalnaCijena,
+      fiksnaCijena: definisaniTip !== 'aukcija' ? (Number(fiksnaCijena) || null) : null,
       slike: finalSlike,
       kategorija,
       lokacija: lokacija || '',
-      trajanjeDo: tipProdaje === 'fiksno' ? null : trajanjeDo,
+      trajanjeDo: definisaniTip === 'fiksno' ? null : trajanjeDo,
       prodavac: req.korisnik._id,
-      dostava,        // <-- Dodato: prosljeđujemo u model
-      naciniPlacanja  // <-- Dodato: prosljeđujemo u model
+      dostava,
+      naciniPlacanja
     });
 
     const spasenaAukcija = await novaAukcija.save();
@@ -48,95 +52,188 @@ export const kreirajAukciju = async (req, res) => {
 // 2. PREUZIMANJE SVIH AUKCIJA (SA PRETRAGOM I FILTRIRANJEM)
 export const preuzmiAukcije = async (req, res) => {
   try {
-    // Uzimamo parametre iz URL-a (query params)
     const { pretraga, kategorija } = req.query;
+    let query = { status: 'aktivno' };
 
-    // Pravimo dinamički objekat za filtriranje baze
-    let query = { status: 'aktivno' }; // Po defaultu prikazujemo samo aktivne aukcije
-
-    // 1. Ako korisnik pretražuje po tekstu (Search bar)
     if (pretraga) {
+      const cleanSearch = escapeRegex(pretraga);
       query.$or = [
-        { naslov: { $regex: pretraga, $options: 'i' } }, // 'i' znači case-insensitive (nebitna velika/mala slova)
-        { opis: { $regex: pretraga, $options: 'i' } }
+        { naslov: { $regex: cleanSearch, $options: 'i' } },
+        { opis: { $regex: cleanSearch, $options: 'i' } }
       ];
     }
 
-    // 2. Ako korisnik izabere određenu kategoriju
     if (kategorija) {
       query.kategorija = kategorija;
     }
 
-    // Izvršavamo pretragu u bazi podataka sa svim filterima
-    const aukcije = await Auction.find(query).populate('prodavac', 'ime email');
-    
+    const aukcije = await Auction.find(query)
+      .populate('prodavac', 'ime email')
+      .sort({ createdAt: -1 });
+
     res.status(200).json(aukcije);
   } catch (error) {
     res.status(500).json({ poruka: 'Greška pri preuzimanju aukcija', greska: error.message });
   }
 };
 
-// 3. DODAVANJE PONUDE NA AUKCIJU (LICITIRANJE)
+// 3. DODAVANJE PONUDE NA AUKCIJE (LICITIRANJE - Atomski upit sprečava Race Conditions)
 export const dodajPonudu = async (req, res) => {
   try {
     const { aukcijaId } = req.params;
-    const { iznos } = req.body; // Iznos koji korisnik nudi
+    const { iznos } = req.body;
     const korisnikId = req.korisnik._id;
+    const numerickiIznos = Number(iznos);
 
-    // 1. Pronađi aukciju u bazi
+    if (!numerickiIznos || numerickiIznos <= 0) {
+      return res.status(400).json({ poruka: 'Molimo unesite ispravan iznos ponude.' });
+    }
+
     const aukcija = await Auction.findById(aukcijaId);
 
     if (!aukcija) {
       return res.status(404).json({ poruka: 'Aukcija nije pronađena.' });
     }
 
-    // 2. Provjera da li je aukcija istekla
-    if (new Date(aukcija.trajanjeDo) < new Date()) {
+    if (aukcija.status !== 'aktivno') {
+      return res.status(400).json({ poruka: 'Aukcija više nije aktivna.' });
+    }
+
+    if (aukcija.trajanjeDo && new Date(aukcija.trajanjeDo) < new Date()) {
       return res.status(400).json({ poruka: 'Aukcija je već završena!' });
     }
 
-    // 3. Vlasnik ne može licitirati na svoj artikal
     if (aukcija.prodavac.toString() === korisnikId.toString()) {
       return res.status(400).json({ poruka: 'Ne možete licitirati na sopstvenu aukciju.' });
     }
 
-    // 4. Nova ponuda mora biti veća od trenutne cijene
-    if (iznos <= aukcija.trenutnaCijena) {
+    // Atomsko ažuriranje: Čuva bazu ako je neko u međuvremenu ponudio više
+    const osvezenaAukcija = await Auction.findOneAndUpdate(
+      {
+        _id: aukcijaId,
+        status: 'aktivno',
+        trenutnaCijena: { $lt: numerickiIznos }
+      },
+      {
+        $set: { trenutnaCijena: numerickiIznos },
+        $push: {
+          ponude: {
+            korisnik: korisnikId,
+            iznos: numerickiIznos,
+            vrijemePonude: new Date(),
+            status: 'aktivno'
+          }
+        }
+      },
+      { new: true }
+    );
+
+    if (!osvezenaAukcija) {
       return res.status(400).json({ 
-        poruka: `Ponuda mora biti veća od trenutne cijene koja iznosi ${aukcija.trenutnaCijena} KM.` 
+        poruka: `Vaša ponuda mora biti veća od trenutne cijene (${aukcija.trenutnaCijena} KM) ili je aukcija završena.` 
       });
     }
 
-    // 5. Ako je sve OK, ažuriramo trenutnu cijenu i dodajemo ponudu u niz
-    aukcija.trenutnaCijena = iznos;
-    
-    // Provjeri da li tvoj model koristi 'ponude' ili 'bids' i prilagodi po potrebi:
-    aukcija.ponude.push({
-      korisnik: korisnikId,
-      iznos: iznos,
-      vrijeme: new Date()
-    });
-
-    await aukcija.save();
-
     res.status(200).json({ 
       poruka: 'Ponuda uspješno prihvaćena!', 
-      trenutnaCijena: aukcija.trenutnaCijena 
+      trenutnaCijena: osvezenaAukcija.trenutnaCijena 
     });
 
   } catch (error) {
     res.status(500).json({ poruka: 'Greška pri slanju ponude', greska: error.message });
   }
 };
-// 4. PREUZIMANJE DETALJA JEDNE SPECIFIČNE AUKCIJE
+
+// 4. PONIŠTAVANJE PONUDE OD STRANE KUPCA
+export const ponistiPonudu = async (req, res) => {
+  try {
+    const { aukcijaId, ponudaId } = req.params;
+    const { razlog } = req.body; 
+    const korisnikId = req.korisnik._id;
+
+    const aukcija = await Auction.findById(aukcijaId);
+    if (!aukcija) {
+      return res.status(404).json({ poruka: 'Aukcija nije pronađena.' });
+    }
+
+    const ponuda = aukcija.ponude.id(ponudaId);
+    if (!ponuda) {
+      return res.status(404).json({ poruka: 'Ponuda nije pronađena.' });
+    }
+
+    if (ponuda.korisnik.toString() !== korisnikId.toString()) {
+      return res.status(403).json({ poruka: 'Možete poništiti samo vlastitu ponudu.' });
+    }
+
+    if (ponuda.status === 'ponisteno') {
+      return res.status(400).json({ poruka: 'Ova ponuda je već poništena.' });
+    }
+
+    const sada = new Date();
+
+    // Zabrana u zadnjih 12 sati aukcije
+    if (aukcija.trajanjeDo) {
+      const preostaloDoKraja = (new Date(aukcija.trajanjeDo) - sada) / (1000 * 60 * 60);
+      if (preostaloDoKraja < 12) {
+        return res.status(400).json({ poruka: 'Nije moguće poništiti ponudu u zadnjih 12 sati aukcije.' });
+      }
+    }
+
+    const trajanjeOdPonude = (sada - new Date(ponuda.vrijemePonude)) / (1000 * 60);
+    const datumIzmjeneAukcije = new Date(aukcija.updatedAt);
+    const datumPonude = new Date(ponuda.vrijemePonude);
+
+    const jeUnutar15Minuta = trajanjeOdPonude <= 15;
+    const artikalIzmijenjenNakonPonude = datumIzmjeneAukcije > datumPonude;
+
+    if (!jeUnutar15Minuta && !artikalIzmijenjenNakonPonude) {
+      return res.status(400).json({ 
+        poruka: 'Prošlo je više od 15 minuta od postavljanja ponude, a oglas nije izmijenjen nakon vaše ponude.' 
+      });
+    }
+
+    // Određivanje razloga u skladu sa enumom u šemi
+    let finalniRazlog = razlog;
+    if (!finalniRazlog) {
+      finalniRazlog = artikalIzmijenjenNakonPonude 
+        ? 'Prodavač izmijenio opis ili stanje artikla' 
+        : 'Tipfeler greška';
+    }
+
+    ponuda.status = 'ponisteno';
+    ponuda.razlogPonistavanja = finalniRazlog;
+    ponuda.vrijemePonistavanja = sada;
+
+    // Preračunavanje trenutne cijene prema preostalim aktivnim ponudama
+    const aktivnePonude = aukcija.ponude.filter(p => p.status === 'aktivno');
+    if (aktivnePonude.length > 0) {
+      const najvisaPonuda = Math.max(...aktivnePonude.map(p => p.iznos));
+      aukcija.trenutnaCijena = najvisaPonuda;
+    } else {
+      aukcija.trenutnaCijena = aukcija.pocetnaCijena;
+    }
+
+    await aukcija.save();
+
+    res.status(200).json({
+      poruka: 'Ponuda je uspješno poništena.',
+      novaTrenutnaCijena: aukcija.trenutnaCijena
+    });
+
+  } catch (error) {
+    res.status(500).json({ poruka: 'Greška pri poništavanju ponude.', greska: error.message });
+  }
+};
+
+// 5. PREUZIMANJE DETALJA JEDNE SPECIFIČNE AUKCIJE
 export const preuzmiAukcijuPoId = async (req, res) => {
   try {
     const { aukcijaId } = req.params;
 
-    // Pronađi aukciju i popuni podatke o prodavcu, ali i o korisnicima unutar niza ponuda
     const aukcija = await Auction.findById(aukcijaId)
       .populate('prodavac', 'ime email')
-      .populate('ponude.korisnik', 'ime email');
+      .populate('ponude.korisnik', 'ime email')
+      .populate('diskusija.korisnik', 'ime email');
 
     if (!aukcija) {
       return res.status(404).json({ poruka: 'Aukcija nije pronađena.' });
@@ -148,7 +245,7 @@ export const preuzmiAukcijuPoId = async (req, res) => {
   }
 };
 
-// 5. BRISANJE / OTKAZIVANJE AUKCIJE
+// 6. BRISANJE / OTKAZIVANJE AUKCIJE
 export const obrisiAukciju = async (req, res) => {
   try {
     const { aukcijaId } = req.params;
@@ -160,13 +257,16 @@ export const obrisiAukciju = async (req, res) => {
       return res.status(404).json({ poruka: 'Aukcija nije pronađena.' });
     }
 
-    // Provjera: Samo prodavac (vlasnik) može obrisati svoju aukciju
     if (aukcija.prodavac.toString() !== korisnikId.toString()) {
       return res.status(403).json({ poruka: 'Nemate ovlaštenje da obrišete ovu aukciju.' });
     }
 
-    // Opcionalno: Možeš dodati pravilo da se aukcija ne može obrisati ako već ima ponuda, 
-    // ali za sada ćemo dozvoliti brisanje
+    // Opcionalno: Sprečavanje brisanja ako aukcija već ima aktivne ponude
+    const imaAktivnihPonuda = aukcija.ponude.some(p => p.status === 'aktivno');
+    if (imaAktivnihPonuda) {
+      return res.status(400).json({ poruka: 'Ne možete obrisati aukciju na kojoj već postoje aktivne ponude.' });
+    }
+
     await Auction.findByIdAndDelete(aukcijaId);
 
     res.status(200).json({ poruka: 'Aukcija je uspješno otkazana i obrisana!' });

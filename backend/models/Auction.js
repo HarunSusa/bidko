@@ -17,7 +17,19 @@ const auctionSchema = new mongoose.Schema({
   },
   pocetnaCijena: { type: Number, default: 0, min: 0 },
   trenutnaCijena: { type: Number, default: 0, min: 0 },
-  fiksnaCijena: { type: Number, default: null },
+  fiksnaCijena: { 
+    type: Number, 
+    default: null,
+    validate: {
+      validator: function(val) {
+        if (this.tipProdaje === 'fiksno' || this.tipProdaje === 'kombinovano') {
+          return val !== null && val > 0;
+        }
+        return true;
+      },
+      message: 'Fiksna cijena je obavezna za fiksnu i kombinovanu prodaju.'
+    }
+  },
   
   // VREMENSKI ROK
   trajanjeDo: { 
@@ -39,16 +51,27 @@ const auctionSchema = new mongoose.Schema({
     default: ['gotovina']
   },
   
-  // TAB 1: ZVANIČNE PONUDE
+  // TAB 1: PONUDE
   ponude: [
     {
       korisnik: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
       iznos: { type: Number, required: true },
-      vrijemePonude: { type: Date, default: Date.now }
+      vrijemePonude: { type: Date, default: Date.now },
+      status: { 
+        type: String, 
+        enum: ['aktivno', 'ponisteno'], 
+        default: 'aktivno' 
+      },
+      razlogPonistavanja: { 
+        type: String, 
+        enum: ['Tipfeler greška', 'Prodavač izmijenio opis ili stanje artikla'], 
+        default: null 
+      },
+      vrijemePonistavanja: { type: Date, default: null }
     }
   ],
   
-  // TAB 2: OPŠTA DISKUSIJA
+  // TAB 2: DISKUSIJA
   diskusija: [
     {
       korisnik: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -57,7 +80,7 @@ const auctionSchema = new mongoose.Schema({
     }
   ],
   
-  // STATUS ARTIKLA & AUTOMATIZACIJA
+  // STATUS & AUTOMATIZACIJA
   status: { 
     type: String, 
     enum: ['aktivno', 'prodato', 'isteklo', 'zavrseno'], 
@@ -65,11 +88,20 @@ const auctionSchema = new mongoose.Schema({
   },
   pobjednik: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   
-  // NOVO: Polje za praćenje poslanih e-mail obavještenja
   obavjestenjePoslano: { type: Boolean, default: false }
 }, { timestamps: true });
 
-// Indeksi za brže pretraživanje u bazi
+// Pre-save hook: Automatsko postavljanje trenutne cijene pri kreiranju
+auctionSchema.pre('save', function(next) {
+  if (this.isNew && this.tipProdaje !== 'fiksno') {
+    if (!this.trenutnaCijena || this.trenutnaCijena === 0) {
+      this.trenutnaCijena = this.pocetnaCijena;
+    }
+  }
+  next();
+});
+
+// Indeksi za optimizaciju upita
 auctionSchema.index({ status: 1, trajanjeDo: 1 });
 auctionSchema.index({ kategorija: 1, status: 1 });
 auctionSchema.index({ prodavac: 1 });

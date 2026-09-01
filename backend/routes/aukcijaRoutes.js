@@ -1,9 +1,11 @@
 import express from 'express';
-import { kreirajAukciju, preuzmiAukcije, dodajPonudu, preuzmiAukcijuPoId, obrisiAukciju} from '../controllers/aukcijaController.js';
-import { zastitiRutu } from '../middleware/authMiddleware.js';
+import { kreirajAukciju, preuzmiAukcije, dodajPonudu, preuzmiAukcijuPoId, obrisiAukciju, ponistiPonudu} from '../controllers/aukcijaController.js';
+import { zastitiRutu } from '../middleware/authMiddleware.js'
 
 const router = express.Router();
 
+
+router.put('/:aukcijaId/ponude/:ponudaId/ponisti', zastitiRutu, ponistiPonudu);
 // Ruta za kreiranje aukcije (ZAŠTIĆENA): POST http://localhost:5000/api/aukcije
 router.post('/', zastitiRutu, kreirajAukciju);
 
